@@ -441,7 +441,7 @@
     // ==========================================================================
 
     function AnalyticsDashboard() {
-      const isLiveServer = window.location.protocol.startsWith('http');
+      const isLiveServer = window.location.protocol.startsWith('http') && !window.location.hostname.endsWith('github.io');
 
       const refresh = async () => {
         if (isLiveServer) {
