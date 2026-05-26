@@ -272,7 +272,7 @@ h1, h2, h3, h4, h5, h6 {
 .pane {
   background-color: var(--colors-canvas);
   overflow-y: auto;
-  height: calc(100vh - 65px);
+  height: 100vh;
 }
 
 /* ==========================================================================
