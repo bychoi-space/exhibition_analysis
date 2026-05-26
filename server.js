@@ -18,6 +18,11 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static(__dirname));
 
+app.get('/style.css', (req, res) => {
+  res.setHeader('Content-Type', 'text/css');
+  res.sendFile(path.join(__dirname, 'style.css'));
+});
+
 // --- Simulated In-Memory Database & Seed Engine ---
 let eventsDatabase = [];
 
