@@ -272,9 +272,17 @@
       window.dispatchEvent(new CustomEvent('clay_analytics_update'));
     };
 
-    // Calculate aggregated statistics locally (Perfect attribution logic match)
-    const getLocalAggregatedStats = () => {
-      const events = getRawEvents();
+    // Calculate aggregated statistics locally (Perfect attribution logic match & Date filtering support)
+    const getLocalAggregatedStats = (startDate, endDate) => {
+      let events = getRawEvents();
+      
+      if (startDate && endDate) {
+        const startTimestamp = new Date(`${startDate}T00:00:00`).getTime();
+        const endTimestamp = new Date(`${endDate}T23:59:59`).getTime();
+        if (!isNaN(startTimestamp) && !isNaN(endTimestamp)) {
+          events = events.filter(e => e.timestamp >= startTimestamp && e.timestamp <= endTimestamp);
+        }
+      }
       
       const sessionToLastExhibition = {};
       const exhibitionStats = {};
@@ -452,11 +460,21 @@
     // ==========================================================================
 
     function AnalyticsDashboard() {
-      const initialLocal = getLocalAggregatedStats();
-      const [stats, setStats] = useState(initialLocal.stats);
-      const [funnel, setFunnel] = useState(initialLocal.funnel);
-      const [pages, setPages] = useState(initialLocal.pages);
-      const [logs, setLogs] = useState(initialLocal.logs);
+      const getFormattedDate = (offsetDays = 0) => {
+        const d = new Date();
+        d.setDate(d.getDate() - offsetDays);
+        return d.toISOString().split('T')[0];
+      };
+
+      const [datePreset, setDatePreset] = useState('7d'); // '3d', '7d', '15d', '30d', 'custom'
+      const [startDate, setStartDate] = useState(getFormattedDate(7));
+      const [endDate, setEndDate] = useState(getFormattedDate(0));
+
+      const [stats, setStats] = useState({ totalPV: "0", uniqueUV: "0", avgDuration: "0s", bounceRate: "0%", revenue: "₩0" });
+      const [funnel, setFunnel] = useState([]);
+      const [pages, setPages] = useState([]);
+      const [logs, setLogs] = useState([]);
+      
       const [isSimulating, setIsSimulating] = useState(false);
       const [simCount, setSimCount] = useState(0);
 
@@ -465,7 +483,7 @@
       const refresh = async () => {
         if (isLiveServer) {
           try {
-            const res = await fetch('/api/stats');
+            const res = await fetch(`/api/stats?startDate=${startDate}&endDate=${endDate}`);
             const data = await res.json();
             setStats(data.stats);
             setFunnel(data.funnel);
@@ -475,7 +493,7 @@
             console.error("Failed to fetch live stats from server.", e);
           }
         } else {
-          const data = getLocalAggregatedStats();
+          const data = getLocalAggregatedStats(startDate, endDate);
           setStats(data.stats);
           setFunnel(data.funnel);
           setPages(data.pages);
@@ -484,15 +502,37 @@
       };
 
       useEffect(() => {
+        refresh();
         if (isLiveServer) {
-          refresh();
           const poll = setInterval(refresh, 2500); // Live poll every 2.5s
           return () => clearInterval(poll);
         } else {
-          window.addEventListener('clay_analytics_update', refresh);
-          return () => window.removeEventListener('clay_analytics_update', refresh);
+          const handleUpdate = () => {
+            const data = getLocalAggregatedStats(startDate, endDate);
+            setStats(data.stats);
+            setFunnel(data.funnel);
+            setPages(data.pages);
+            setLogs(data.logs);
+          };
+          window.addEventListener('clay_analytics_update', handleUpdate);
+          return () => window.removeEventListener('clay_analytics_update', handleUpdate);
         }
-      }, []);
+      }, [startDate, endDate]);
+
+      const handlePresetChange = (preset) => {
+        setDatePreset(preset);
+        const today = getFormattedDate(0);
+        setEndDate(today);
+        if (preset === '3d') {
+          setStartDate(getFormattedDate(3));
+        } else if (preset === '7d') {
+          setStartDate(getFormattedDate(7));
+        } else if (preset === '15d') {
+          setStartDate(getFormattedDate(15));
+        } else if (preset === '30d') {
+          setStartDate(getFormattedDate(30));
+        }
+      };
 
       useEffect(() => {
         let timer = null;
@@ -571,6 +611,77 @@
                 </div>
               )}
               <button className="btn btn-secondary btn-sm" onClick={refresh}><IconRefresh /> 수동 새로고침</button>
+            </div>
+          </div>
+
+          {/* Date Range Selector Panel (Clay.com styled) */}
+          <div className="simulation-drawer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--colors-surface-soft)', padding: '12px 20px', borderRadius: 'var(--rounded-lg)', marginBottom: 'var(--spacing-md)', border: '1px solid var(--colors-hairline)', marginTop: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--colors-muted)', marginRight: '8px' }}>조회 기간:</span>
+              {['3d', '7d', '15d', '30d', 'custom'].map(preset => {
+                const labels = { '3d': '최근 3일', '7d': '최근 7일', '15d': '최근 15일', '30d': '최근 30일', 'custom': '직접 지정' };
+                const isActive = datePreset === preset;
+                return (
+                  <button
+                    key={preset}
+                    className={`btn btn-sm ${isActive ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => handlePresetChange(preset)}
+                    style={{
+                      height: '28px',
+                      fontSize: '12px',
+                      padding: '4px 12px',
+                      backgroundColor: isActive ? 'var(--colors-brand-teal)' : 'var(--colors-canvas)',
+                      color: isActive ? '#ffffff' : 'var(--colors-ink)',
+                      borderRadius: 'var(--rounded-pill)',
+                      border: isActive ? 'none' : '1px solid var(--colors-hairline)'
+                    }}
+                  >
+                    {labels[preset]}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                type="date"
+                className="text-input"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  setDatePreset('custom');
+                }}
+                disabled={datePreset !== 'custom'}
+                style={{
+                  height: '32px',
+                  padding: '4px 10px',
+                  fontSize: '12px',
+                  borderRadius: 'var(--rounded-sm)',
+                  backgroundColor: datePreset === 'custom' ? 'var(--colors-canvas)' : 'var(--colors-surface-strong)',
+                  border: '1px solid var(--colors-hairline)',
+                  fontFamily: 'monospace'
+                }}
+              />
+              <span style={{ fontSize: '12px', color: 'var(--colors-muted)', fontWeight: 600 }}>~</span>
+              <input
+                type="date"
+                className="text-input"
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  setDatePreset('custom');
+                }}
+                disabled={datePreset !== 'custom'}
+                style={{
+                  height: '32px',
+                  padding: '4px 10px',
+                  fontSize: '12px',
+                  borderRadius: 'var(--rounded-sm)',
+                  backgroundColor: datePreset === 'custom' ? 'var(--colors-canvas)' : 'var(--colors-surface-strong)',
+                  border: '1px solid var(--colors-hairline)',
+                  fontFamily: 'monospace'
+                }}
+              />
             </div>
           </div>
 

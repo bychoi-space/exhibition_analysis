@@ -224,7 +224,19 @@ app.post('/api/collect', (req, res) => {
 
 // 2. Get Exhibition-Focused Aggregated Statistics (Last-Touch Attribution Worker)
 app.get('/api/stats', (req, res) => {
-  const events = eventsDatabase;
+  const { startDate, endDate } = req.query;
+  let filteredEvents = eventsDatabase;
+  
+  if (startDate && endDate) {
+    const startTimestamp = new Date(`${startDate}T00:00:00`).getTime();
+    const endTimestamp = new Date(`${endDate}T23:59:59`).getTime();
+    
+    if (!isNaN(startTimestamp) && !isNaN(endTimestamp)) {
+      filteredEvents = eventsDatabase.filter(e => e.timestamp >= startTimestamp && e.timestamp <= endTimestamp);
+    }
+  }
+
+  const events = filteredEvents;
   
   // --- LAST-TOUCH ATTRIBUTION CALCULATION WORKER ---
   const sessionToLastExhibition = {};
@@ -351,7 +363,7 @@ app.get('/api/stats', (req, res) => {
       { name: '5. 최종 구매 완료 (결제)', count: purCount, rate: getPct(purCount), color: 'var(--colors-brand-mint)' }
     ],
     pages: exhibitionsPerformanceList, // Replaces default pages directory with active exhibitions performance!
-    logs: eventsDatabase.slice(-25).reverse()
+    logs: events.slice(-25).reverse()
   });
 });
 
