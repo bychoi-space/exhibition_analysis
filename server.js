@@ -176,6 +176,8 @@ seedServerDatabase();
 
 // --- HELPER FUNCTION: EXTRACT EXHIBITION ID FROM URL ---
 function extractExhibitionId(urlPath) {
+  if (!urlPath || typeof urlPath !== 'string') return null;
+  
   // Pattern A: /app/event/103291
   const matchA = urlPath.match(/\/app\/event\/([a-zA-Z0-9_-]+)/);
   if (matchA) return matchA[1];
@@ -228,11 +230,16 @@ app.get('/api/stats', (req, res) => {
   let filteredEvents = eventsDatabase;
   
   if (startDate && endDate) {
-    const startTimestamp = new Date(`${startDate}T00:00:00`).getTime();
-    const endTimestamp = new Date(`${endDate}T23:59:59`).getTime();
+    const startParts = startDate.split('-');
+    const endParts = endDate.split('-');
     
-    if (!isNaN(startTimestamp) && !isNaN(endTimestamp)) {
-      filteredEvents = eventsDatabase.filter(e => e.timestamp >= startTimestamp && e.timestamp <= endTimestamp);
+    if (startParts.length === 3 && endParts.length === 3) {
+      const startTimestamp = new Date(parseInt(startParts[0]), parseInt(startParts[1]) - 1, parseInt(startParts[2]), 0, 0, 0, 0).getTime();
+      const endTimestamp = new Date(parseInt(endParts[0]), parseInt(endParts[1]) - 1, parseInt(endParts[2]), 23, 59, 59, 999).getTime();
+      
+      if (!isNaN(startTimestamp) && !isNaN(endTimestamp)) {
+        filteredEvents = eventsDatabase.filter(e => e.timestamp >= startTimestamp && e.timestamp <= endTimestamp);
+      }
     }
   }
 
