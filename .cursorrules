@@ -1,0 +1,93 @@
+# Cursor AI Coding Rules - Clay.com Aesthetic (GTM Analytics System)
+
+You are an expert React and CSS engineer tasked with building an analytics prototype. All frontend, styling, and UI logic in this repository must strictly adhere to the custom **Clay.com Design System** specified below.
+
+## 🎨 Essential Design Rules
+
+### 1. Canvas & Atmosphere (Non-Negotiable)
+- **Canvas floor** MUST ALWAYS be Cream-Tinted White Canvas (`#fffaf0`). **NEVER** use white (`#ffffff`), cool grays, or standard dark-mode canvases.
+- **Primary Ink / CTAs**: Near-black with slight warmth (`#0a0a0a`).
+- **Footer**: MUST be warm-light cream-tinted (`#faf5e8`). **DO NOT** use dark footers.
+- **Borders**: Hairline thin (`1px solid #e5e5e5`) for cards and inputs. No heavy shadows. Depth is achieved via saturated color blocks and contrast.
+
+### 2. Saturated 6-Color Palette (Feature Card Voltages)
+Every feature card or dashboard overview block should cycle through this highly specific 6-color palette. Never use more than one of the same color in a row.
+- **Brand Pink**: `#ff4d8b` (Hot pink) -> For sequencer, conversion funnels, outbound tracking.
+- **Brand Teal**: `#1a3a3a` (Deep teal-green) -> For pricing, enterprise layers, premium conversions (text flips to white `#ffffff`).
+- **Brand Lavender**: `#b8a4ed` (Soft lavender) -> For AI actions, events, detailed logs.
+- **Brand Peach**: `#ffb084` (Warm peach) -> For user sessions, bounce stats.
+- **Brand Ochre**: `#e8b94a` (Mustard / ochre) -> For alerts, clicks, and analytics highlights.
+- **Surface Card (Cream)**: `#f5f0e0` (Rich cream) -> For neutral logs, testimonials, minor lists.
+
+### 3. Typography & Voice
+- **Display Headlines (h1, h2, h3)**: Use standard `Inter` (or system fonts) locked at **weight 500** with **negative letter-spacing** (e.g., `-0.05em` or `-2.5px`). **NEVER** use bold weight 700+ for display text.
+- **Body & UI**: Use `Inter` at standard weight 400 for running text, 500-600 for button labels and navigation links.
+- Display and body text must never be mixed.
+
+### 4. Generous Rounded Radiuses
+Matches the warm, friendly, "claymation" feel of the brand.
+- `{rounded.xs}` (6px): Dropdown items, small badges.
+- `{rounded.sm}` (8px): Mini buttons, accent borders.
+- `{rounded.md}` (12px): Main CTA buttons, text inputs.
+- `{rounded.lg}` (16px): Testimonials, pricing tiles, dashboard cards.
+- `{rounded.xl}` (24px): Primary Saturated Feature Cards.
+- `{rounded.pill}` (9999px): Toggle buttons, pill tabs.
+
+---
+
+## 🛠️ CSS Variables Implementation Guide
+You must define these custom CSS variables in `style.css` and use them exclusively:
+
+```css
+:root {
+  /* Brand & Accent */
+  --colors-primary: #0a0a0a;
+  --colors-brand-pink: #ff4d8b;
+  --colors-brand-teal: #1a3a3a;
+  --colors-brand-lavender: #b8a4ed;
+  --colors-brand-peach: #ffb084;
+  --colors-brand-ochre: #e8b94a;
+  --colors-brand-mint: #a4d4c5;
+  --colors-brand-coral: #ff6b5a;
+
+  /* Surfaces */
+  --colors-canvas: #fffaf0;
+  --colors-surface-soft: #faf5e8;
+  --colors-surface-card: #f5f0e0;
+  --colors-surface-strong: #ebe6d6;
+  --colors-surface-dark: #0a1a1a;
+  --colors-hairline: #e5e5e5;
+
+  /* Text Colors */
+  --colors-ink: #0a0a0a;
+  --colors-body-strong: #1a1a1a;
+  --colors-body: #3a3a3a;
+  --colors-muted: #6a6a6a;
+  --colors-muted-soft: #9a9a9a;
+  --colors-on-primary: #ffffff;
+
+  /* Border Radiuses */
+  --rounded-xs: 6px;
+  --rounded-sm: 8px;
+  --rounded-md: 12px;
+  --rounded-lg: 16px;
+  --rounded-xl: 24px;
+  --rounded-pill: 9999px;
+  
+  /* Spacing */
+  --spacing-xxs: 4px;
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+  --spacing-section: 96px;
+}
+```
+
+## 🚫 Critical Don'ts
+- **No Tailwind CSS**: Use Vanilla CSS variables, rules, and flexbox/grid exclusively in `style.css`.
+- **No Heavy Shadows**: Keep drop-shadows empty or extremely faint (`rgba(0,0,0,0.03)`). Depth comes from colored block cards.
+- **No Dark Theme Base**: The background (`--colors-canvas`) is ALWAYS `#fffaf0`. Do not invert the canvas to black or dark-gray for the analytics dashboard; adapt the dashboard to fit inside the warm cream aesthetic beautifully!
+- **No Bolder display weight**: Keep display titles at weight 500 with tight letter-spacing.
