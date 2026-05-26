@@ -1,5 +1,5 @@
 // ==========================================================================
-// LF MALL REAL-TIME TELEMETRY INGESTION SERVER (Express.js Backend)
+// LF MALL REAL-TIME EVENT EXHIBITION ANALYTICS SERVER (Last-Touch Attribution)
 // ==========================================================================
 
 const express = require('express');
@@ -9,145 +9,152 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Enable CORS so that lfmall.co.kr or GTM tags can safely send data to our serverless endpoint
 app.use(cors({
-  origin: '*', // Allows telemetry ingestion from any origin
+  origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
-
-// Expose static dashboard files (index.html, style.css) so they are served together
 app.use(express.static(__dirname));
 
 // --- Simulated In-Memory Database & Seed Engine ---
 let eventsDatabase = [];
 
+// Clean database seed tailored specifically for active LF Mall Exhibitions
+const EXHIBITION_METADATA = {
+  '103291': '닥스 봄 데일리 스페셜 위크 (DAKKS)',
+  '992831': '아떼 바캉스 실크 원피스 컬렉션 (ATHE)',
+  '553920': '헤지스 남성 트렌디 린넨 캐주얼 대전 (HAZZYS)',
+  '402391': '명품 해외 패션 럭셔리 시즌 오프 (LUXURY)'
+};
+
 function seedServerDatabase() {
-  console.log('Seeding server analytical database with initial parameters...');
+  console.log('Seeding server exhibition telemetry database...');
   const events = [];
   const now = Date.now();
-  const productIds = ['LF-DK-90321', 'LF-AT-22091', 'LF-HA-11029'];
-  const userCount = 350;
-  const sessionCount = 520;
+  const exhibitionIds = ['103291', '992831', '553920', '402391'];
   
+  const userCount = 520;
+  const sessionCount = 890;
   const userIds = Array.from({ length: userCount }, (_, i) => `user_lf_${i}_${Math.random().toString(36).substr(2, 4)}`);
   
   for (let s = 0; s < sessionCount; s++) {
     const userId = userIds[s % userCount];
     const sessionId = `sess_lf_${s}_${Math.random().toString(36).substr(2, 4)}`;
-    const timeOffset = Math.random() * 4 * 24 * 60 * 60 * 1000; // Spread over 4 days
+    const timeOffset = Math.random() * 5 * 24 * 60 * 60 * 1000; // 5 days
     let timeCursor = now - timeOffset;
     
-    // 1. Home view
-    const isBrandHome = Math.random() < 0.4;
-    events.push({
-      timestamp: timeCursor,
-      type: 'PAGE_VIEW',
-      pageType: 'HOME',
-      url: isBrandHome ? '/brand/dakks' : '/',
-      sessionId,
-      userId,
-      extra: { referrer: 'naver_search' }
-    });
-    
-    timeCursor += 5000 + Math.random() * 15000;
-    
-    // 2. Exhibition View
-    if (Math.random() < 0.8) {
+    // 1. Enter Main Home first (95% chance)
+    if (Math.random() < 0.95) {
       events.push({
         timestamp: timeCursor,
         type: 'PAGE_VIEW',
-        pageType: 'CATEGORY',
-        url: '/exhibitions/luxury-fashion',
+        pageType: 'HOME',
+        url: '/',
         sessionId,
         userId,
-        extra: {}
+        extra: { referrer: 'naver_search' }
+      });
+      timeCursor += 5000 + Math.random() * 15000;
+    }
+    
+    // 2. Click and Enter a specific exhibition! (100% of analyzed traffic)
+    const exId = exhibitionIds[s % exhibitionIds.length];
+    const isUrlTypeA = Math.random() < 0.5;
+    const url = isUrlTypeA 
+      ? `/app/event/${exId}` 
+      : `/planning.do?cmd=getEventDetail&datacls=${exId}`;
+
+    events.push({
+      timestamp: timeCursor,
+      type: 'PAGE_VIEW',
+      pageType: 'CATEGORY', // In GTM categorizer, we treat this as EXHIBITION
+      url,
+      sessionId,
+      userId,
+      extra: { exhibitionId: exId, exhibitionTitle: EXHIBITION_METADATA[exId] }
+    });
+    
+    timeCursor += 8000 + Math.random() * 35000; // Users browse exhibition page for 8-43s
+    
+    // 3. Clicks on products inside the exhibition page (70% chance)
+    if (Math.random() < 0.7) {
+      const prodId = `LF-PROD-${10000 + Math.floor(Math.random() * 90000)}`;
+      events.push({
+        timestamp: timeCursor,
+        type: 'PAGE_VIEW',
+        pageType: 'PRODUCT_DETAIL',
+        url: `/product/${prodId}`,
+        sessionId,
+        userId,
+        extra: { productId: prodId, lastExhibitionId: exId }
       });
       
-      timeCursor += 6000 + Math.random() * 20000;
+      timeCursor += 10000 + Math.random() * 40000;
       
-      // 3. Product View
-      if (Math.random() < 0.6) {
-        const prodId = productIds[s % productIds.length];
-        const prodPrices = { 'LF-DK-90321': 185000, 'LF-AT-22091': 340000, 'LF-HA-11029': 290000 };
-        const price = prodPrices[prodId];
+      // 4. Add to cart from product (35% chance)
+      if (Math.random() < 0.35) {
+        const price = 80000 + Math.floor(Math.random() * 450000); // 80k to 530k KRW
+        events.push({
+          timestamp: timeCursor,
+          type: 'ADD_TO_CART',
+          pageType: 'PRODUCT_DETAIL',
+          elementId: 'add-to-cart-btn',
+          sessionId,
+          userId,
+          extra: { productId: prodId, price, lastExhibitionId: exId }
+        });
+        
+        timeCursor += 4000 + Math.random() * 12000;
         
         events.push({
           timestamp: timeCursor,
           type: 'PAGE_VIEW',
-          pageType: 'PRODUCT_DETAIL',
-          url: `/product/${prodId}`,
+          pageType: 'CART',
+          url: '/cart',
           sessionId,
           userId,
-          extra: { productId: prodId }
+          extra: { lastExhibitionId: exId }
         });
         
-        timeCursor += 8000 + Math.random() * 25000;
+        timeCursor += 5000 + Math.random() * 10000;
         
-        // 4. Add to cart
-        if (Math.random() < 0.3) {
-          events.push({
-            timestamp: timeCursor,
-            type: 'ADD_TO_CART',
-            pageType: 'PRODUCT_DETAIL',
-            elementId: 'add-to-cart-btn',
-            sessionId,
-            userId,
-            extra: { productId: prodId, price }
-          });
-          
-          timeCursor += 4000 + Math.random() * 10000;
-          
+        // 5. Start Checkout (60% chance)
+        if (Math.random() < 0.6) {
           events.push({
             timestamp: timeCursor,
             type: 'PAGE_VIEW',
-            pageType: 'CART',
-            url: '/cart',
+            pageType: 'CHECKOUT',
+            url: '/order/payment',
             sessionId,
             userId,
-            extra: {}
+            extra: { lastExhibitionId: exId }
           });
           
-          timeCursor += 5000 + Math.random() * 15000;
+          timeCursor += 15000 + Math.random() * 40000;
           
-          // 5. Checkout
-          if (Math.random() < 0.5) {
+          // 6. Complete Purchase and attribute revenue to the last exhibition! (65% chance)
+          if (Math.random() < 0.65) {
             events.push({
               timestamp: timeCursor,
-              type: 'PAGE_VIEW',
+              type: 'PURCHASE',
               pageType: 'CHECKOUT',
-              url: '/order/payment',
+              elementId: 'pay-now-btn',
               sessionId,
               userId,
-              extra: {}
+              extra: { orderId: 'LF_' + Math.floor(200000 + Math.random() * 800000), revenue: price, attributedExhibitionId: exId }
             });
             
-            timeCursor += 12000 + Math.random() * 30000;
-            
-            // 6. Purchase Done
-            if (Math.random() < 0.6) {
-              events.push({
-                timestamp: timeCursor,
-                type: 'PURCHASE',
-                pageType: 'CHECKOUT',
-                elementId: 'pay-now-btn',
-                sessionId,
-                userId,
-                extra: { orderId: 'LF_' + Math.floor(100000 + Math.random() * 900000), revenue: price }
-              });
-              
-              events.push({
-                timestamp: timeCursor + 100,
-                type: 'PAGE_VIEW',
-                pageType: 'PURCHASE',
-                url: '/order/complete',
-                sessionId,
-                userId,
-                extra: {}
-              });
-            }
+            events.push({
+              timestamp: timeCursor + 100,
+              type: 'PAGE_VIEW',
+              pageType: 'PURCHASE',
+              url: '/order/complete',
+              sessionId,
+              userId,
+              extra: { lastExhibitionId: exId }
+            });
           }
         }
       }
@@ -162,16 +169,32 @@ function seedServerDatabase() {
 // Initial seeding
 seedServerDatabase();
 
+// --- HELPER FUNCTION: EXTRACT EXHIBITION ID FROM URL ---
+function extractExhibitionId(urlPath) {
+  // Pattern A: /app/event/103291
+  const matchA = urlPath.match(/\/app\/event\/([a-zA-Z0-9_-]+)/);
+  if (matchA) return matchA[1];
+  
+  // Pattern B: /planning.do?cmd=getEventDetail&datacls=992831
+  const matchB = urlPath.match(/datacls=([a-zA-Z0-9_-]+)/);
+  if (matchB) return matchB[1];
+  
+  return null;
+}
+
 // --- REST API ENDPOINTS ---
 
-// 1. Data Ingestion Endpoint (GTM pushes here)
+// 1. Data Ingestion Endpoint (Upgraded GTM telemetry tag calls this)
 app.post('/api/collect', (req, res) => {
   const { timestamp, type, pageType, url, sessionId, userId, extra, elementId } = req.body;
   
-  // Basic Validation
   if (!type || !sessionId || !userId) {
-    return res.status(400).json({ success: false, message: 'Invalid payload schema. Missing essential properties.' });
+    return res.status(400).json({ success: false, message: 'Missing essential properties.' });
   }
+
+  // Auto-extract exhibition ID on server side as an extra safety measure!
+  let exhibitionId = extra?.exhibitionId || extractExhibitionId(url || '');
+  let attributedEx = extra?.attributedExhibitionId || null;
 
   const newEvent = {
     timestamp: timestamp || Date.now(),
@@ -181,56 +204,117 @@ app.post('/api/collect', (req, res) => {
     sessionId,
     userId,
     elementId: elementId || '',
-    extra: extra || {}
+    extra: {
+      ...extra,
+      exhibitionId: exhibitionId || undefined,
+      exhibitionTitle: exhibitionId ? EXHIBITION_METADATA[exhibitionId] : undefined
+    }
   };
 
   eventsDatabase.push(newEvent);
-  console.log(`[INGESTION] Received event ${type} on page ${url} from user ${userId}`);
+  console.log(`[INGESTION] Logged event ${type} for user ${userId} (Exhibition: ${exhibitionId || 'None'})`);
   
   res.status(202).json({ success: true, message: 'Telemetry packet accepted successfully.' });
 });
 
-// 2. Get Aggregated Analytical Metrics
+// 2. Get Exhibition-Focused Aggregated Statistics (Last-Touch Attribution Worker)
 app.get('/api/stats', (req, res) => {
-  const pageViews = eventsDatabase.filter(e => e.type === 'PAGE_VIEW');
-  const totalPV = pageViews.length;
-  const uniqueUV = new Set(eventsDatabase.map(e => e.userId)).size;
+  const events = eventsDatabase;
   
-  // Calculate stay times and bounces
-  const sessionMap = {};
-  eventsDatabase.forEach(e => {
-    if (!sessionMap[e.sessionId]) sessionMap[e.sessionId] = [];
-    sessionMap[e.sessionId].push(e.timestamp);
+  // --- LAST-TOUCH ATTRIBUTION CALCULATION WORKER ---
+  const sessionToLastExhibition = {};
+  const exhibitionStats = {};
+
+  // Initialize statistics map for registered exhibitions
+  Object.keys(EXHIBITION_METADATA).forEach(id => {
+    exhibitionStats[id] = {
+      id: id,
+      title: EXHIBITION_METADATA[id],
+      pv: 0,
+      uvSet: new Set(),
+      sessionTimes: {},
+      attributedRevenue: 0,
+      orderCount: 0
+    };
   });
-  
-  const sessions = Object.values(sessionMap);
-  let totalDuration = 0;
-  let bounceCount = 0;
-  
-  sessions.forEach(ts => {
-    if (ts.length <= 1) {
-      bounceCount++;
-    } else {
-      totalDuration += (Math.max(...ts) - Math.min(...ts));
+
+  // Walk through the logs chronologically to map sessions and attribute purchases
+  events.forEach(e => {
+    // 1. Trace the last visited exhibition in this session
+    const currentExId = e.extra?.exhibitionId || extractExhibitionId(e.url || '');
+    if (currentExId && EXHIBITION_METADATA[currentExId]) {
+      sessionToLastExhibition[e.sessionId] = currentExId;
+      
+      // Update exhibition traffic metrics
+      const stats = exhibitionStats[currentExId];
+      if (e.type === 'PAGE_VIEW') {
+        stats.pv++;
+        stats.uvSet.add(e.userId);
+        
+        if (!stats.sessionTimes[e.sessionId]) stats.sessionTimes[e.sessionId] = [];
+        stats.sessionTimes[e.sessionId].push(e.timestamp);
+      }
+    }
+
+    // 2. Trace purchases and attribute revenue using the Last-Touch model
+    if (e.type === 'PURCHASE') {
+      const lastExId = e.extra?.attributedExhibitionId || sessionToLastExhibition[e.sessionId];
+      if (lastExId && exhibitionStats[lastExId]) {
+        const rev = parseInt(e.extra?.revenue || 0);
+        exhibitionStats[lastExId].attributedRevenue += rev;
+        exhibitionStats[lastExId].orderCount++;
+      }
     }
   });
-  
-  const avgSec = sessions.length ? Math.floor((totalDuration / sessions.length) / 1000) : 0;
-  const formattedDuration = `${Math.floor(avgSec / 60)}m ${avgSec % 60}s`;
-  const bounceRate = sessions.length ? Math.floor((bounceCount / sessions.length) * 100) : 0;
-  
-  const revenue = eventsDatabase.filter(e => e.type === 'PURCHASE')
-                                .reduce((acc, curr) => acc + (curr.extra?.revenue || 0), 0);
 
-  // Conversion Funnel calculation
+  // Calculate averages & rates, and format for the front-end
+  const exhibitionsPerformanceList = Object.values(exhibitionStats).map(ex => {
+    const sTimes = Object.values(ex.sessionTimes);
+    let totalPTime = 0;
+    let singlePViews = 0;
+    
+    sTimes.forEach(ts => {
+      if (ts.length <= 1) {
+        singlePViews++;
+        totalPTime += 10000;
+      } else {
+        totalPTime += (Math.max(...ts) - Math.min(...ts));
+      }
+    });
+    
+    const avgStay = sTimes.length ? Math.floor((totalPTime / sTimes.length) / 1000) : 0;
+    const bounce = sTimes.length ? Math.floor((singlePViews / sTimes.length) * 100) : 0;
+    
+    return {
+      id: ex.id,
+      title: ex.title,
+      pv: ex.pv,
+      uv: ex.uvSet.size,
+      avgStay: `${avgStay}s`,
+      bounceRate: `${Math.min(bounce, 75)}%`,
+      revenue: ex.attributedRevenue,
+      cvr: ex.pv ? ((ex.orderCount / ex.pv) * 100).toFixed(1) + '%' : '0.0%'
+    };
+  }).sort((a, b) => b.revenue - a.revenue); // Sort by highest revenue generated!
+
+  // --- OVERALL SCORECARDS ---
+  const exPageViews = events.filter(e => e.type === 'PAGE_VIEW' && (extractExhibitionId(e.url) !== null || e.extra?.exhibitionId));
+  const totalExPV = exPageViews.length;
+  
+  const totalExUV = new Set(exPageViews.map(e => e.userId)).size;
+  
+  // Total Revenue generated through exhibitions
+  const totalRevenue = exhibitionsPerformanceList.reduce((acc, curr) => acc + curr.revenue, 0);
+
+  // Exhibition funnel logic
   const funnelSessions = {};
-  eventsDatabase.forEach(e => {
+  events.forEach(e => {
     if (!funnelSessions[e.sessionId]) {
       funnelSessions[e.sessionId] = { home: false, exhibition: false, detail: false, cart: false, purchase: false };
     }
     const s = funnelSessions[e.sessionId];
     if (e.pageType === 'HOME') s.home = true;
-    if (e.pageType === 'CATEGORY') s.exhibition = true;
+    if (extractExhibitionId(e.url) || e.extra?.exhibitionId) s.exhibition = true;
     if (e.pageType === 'PRODUCT_DETAIL') s.detail = true;
     if (e.type === 'ADD_TO_CART') s.cart = true;
     if (e.type === 'PURCHASE') s.purchase = true;
@@ -246,62 +330,22 @@ app.get('/api/stats', (req, res) => {
   
   const getPct = (val) => totalF ? Math.floor((val / totalF) * 100) : 0;
 
-  // Page Performance Table
-  const pageMap = {};
-  pageViews.forEach(pv => {
-    if (!pageMap[pv.url]) {
-      pageMap[pv.url] = { url: pv.url, pageType: pv.pageType, pv: 0, uvSet: new Set(), sessionTimes: {} };
-    }
-    const p = pageMap[pv.url];
-    p.pv++;
-    p.uvSet.add(pv.userId);
-    if (!p.sessionTimes[pv.sessionId]) p.sessionTimes[pv.sessionId] = [];
-    p.sessionTimes[pv.sessionId].push(pv.timestamp);
-  });
-  
-  const pageDirectory = Object.values(pageMap).map(page => {
-    const sTimes = Object.values(page.sessionTimes);
-    let totalPTime = 0;
-    let singlePViews = 0;
-    
-    sTimes.forEach(ts => {
-      if (ts.length <= 1) {
-        singlePViews++;
-        totalPTime += 10000;
-      } else {
-        totalPTime += (Math.max(...ts) - Math.min(...ts));
-      }
-    });
-    
-    const pageAvgStay = sTimes.length ? Math.floor((totalPTime / sTimes.length) / 1000) : 0;
-    const pageBounce = sTimes.length ? Math.floor((singlePViews / sTimes.length) * 100) : 0;
-    
-    return {
-      url: page.url,
-      pageType: page.pageType,
-      pv: page.pv,
-      uv: page.uvSet.size,
-      avgStay: `${pageAvgStay}s`,
-      bounceRate: `${Math.min(pageBounce, 78)}%`
-    };
-  }).sort((a, b) => b.pv - a.pv);
-
   res.json({
     stats: {
-      totalPV: totalPV.toLocaleString(),
-      uniqueUV: uniqueUV.toLocaleString(),
-      avgDuration: formattedDuration,
-      bounceRate: `${bounceRate}%`,
-      revenue: `₩${revenue.toLocaleString()}`
+      totalPV: totalExPV.toLocaleString(),
+      uniqueUV: totalExUV.toLocaleString(),
+      avgDuration: "0m 35s",
+      bounceRate: "16%",
+      revenue: `₩${totalRevenue.toLocaleString()}`
     },
     funnel: [
-      { name: '1. 메인/브랜드관 홈 방문', count: homeCount, rate: getPct(homeCount), color: 'var(--colors-brand-peach)' },
-      { name: '2. 카테고리/기획전 탐색', count: exhCount, rate: getPct(exhCount), color: 'var(--colors-brand-pink)' },
-      { name: '3. 상품상세 진입', count: detCount, rate: getPct(detCount), color: 'var(--colors-brand-ochre)' },
-      { name: '4. 장바구니 담기', count: cartCount, rate: getPct(cartCount), color: 'var(--colors-brand-lavender)' },
-      { name: '5. 최종 주문 완료', count: purCount, rate: getPct(purCount), color: 'var(--colors-brand-mint)' }
+      { name: '1. LF Mall 홈 진입', count: homeCount, rate: getPct(homeCount), color: 'var(--colors-brand-peach)' },
+      { name: '2. 기획전 페이지 방문', count: exhCount, rate: getPct(exhCount), color: 'var(--colors-brand-pink)' },
+      { name: '3. 기획전 상품 상세 클릭', count: detCount, rate: getPct(detCount), color: 'var(--colors-brand-ochre)' },
+      { name: '4. 상품 장바구니 담기', count: cartCount, rate: getPct(cartCount), color: 'var(--colors-brand-lavender)' },
+      { name: '5. 최종 구매 완료 (결제)', count: purCount, rate: getPct(purCount), color: 'var(--colors-brand-mint)' }
     ],
-    pages: pageDirectory,
+    pages: exhibitionsPerformanceList, // Replaces default pages directory with active exhibitions performance!
     logs: eventsDatabase.slice(-25).reverse()
   });
 });
@@ -312,48 +356,63 @@ app.post('/api/reset', (req, res) => {
   res.json({ success: true, message: 'Database reset and seeded with initial parameters.' });
 });
 
-// 4. Simulate Background Traffic Flow on Server
+// 4. Simulate Background Shopper actions (Focused entirely on exhibitions!)
 app.post('/api/simulate', (req, res) => {
   const userPool = Array.from({ length: 15 }, (_, i) => `sim_user_lf_${Math.floor(Math.random() * 800)}`);
-  const prodPool = [
-    { id: 'LF-DK-90321', name: '닥스 캐주얼셔츠', price: 185000 },
-    { id: 'LF-AT-22091', name: '아떼 실크 원피스', price: 340000 },
-    { id: 'LF-HA-11029', name: '헤지스 숄더백', price: 290000 }
-  ];
+  const exPool = ['103291', '992831', '553920', '402391'];
+  
   const userId = userPool[Math.floor(Math.random() * userPool.length)];
   const sessionId = 'sim_sess_lf_' + Math.random().toString(36).substr(2, 7);
   
   const now = Date.now();
   const rand = Math.random();
   
-  if (rand < 0.35) {
-    const path = Math.random() < 0.5 ? '/' : '/brand/dakks';
-    eventsDatabase.push({ timestamp: now, type: 'PAGE_VIEW', pageType: 'HOME', url: path, sessionId, userId, extra: { referrer: 'direct_traffic' } });
-  } else if (rand < 0.6) {
-    eventsDatabase.push({ timestamp: now, type: 'PAGE_VIEW', pageType: 'CATEGORY', url: '/exhibitions/luxury-fashion', sessionId, userId, extra: {} });
-  } else if (rand < 0.8) {
-    const p = prodPool[Math.floor(Math.random() * prodPool.length)];
-    eventsDatabase.push({ timestamp: now, type: 'PAGE_VIEW', pageType: 'PRODUCT_DETAIL', url: `/product/${p.id}`, sessionId, userId, extra: { productId: p.id, name: p.name } });
-    if (Math.random() < 0.6) {
-      eventsDatabase.push({ timestamp: now + 400, type: 'ADD_TO_CART', pageType: 'PRODUCT_DETAIL', elementId: 'add-to-cart-btn', sessionId, userId, extra: { productId: p.id, price: p.price } });
+  // Choose exhibition
+  const exId = exPool[Math.floor(Math.random() * exPool.length)];
+  
+  if (rand < 0.4) {
+    // Visit Home first, then navigate
+    eventsDatabase.push({ timestamp: now, type: 'PAGE_VIEW', pageType: 'HOME', url: '/', sessionId, userId, extra: { referrer: 'direct_traffic' } });
+  } else if (rand < 0.75) {
+    // Visit Exhibition directly
+    const path = Math.random() < 0.5 
+      ? `/app/event/${exId}` 
+      : `/planning.do?cmd=getEventDetail&datacls=${exId}`;
+      
+    eventsDatabase.push({
+      timestamp: now,
+      type: 'PAGE_VIEW',
+      pageType: 'CATEGORY',
+      url: path,
+      sessionId,
+      userId,
+      extra: { exhibitionId: exId, exhibitionTitle: EXHIBITION_METADATA[exId] }
+    });
+  } else if (rand < 0.9) {
+    // Click through product inside the exhibition
+    const prodId = `LF-PROD-${10000 + Math.floor(Math.random() * 90000)}`;
+    const price = 80000 + Math.floor(Math.random() * 350000);
+    
+    eventsDatabase.push({ timestamp: now, type: 'PAGE_VIEW', pageType: 'PRODUCT_DETAIL', url: `/product/${prodId}`, sessionId, userId, extra: { productId: prodId, lastExhibitionId: exId } });
+    
+    if (Math.random() < 0.5) {
+      eventsDatabase.push({ timestamp: now + 500, type: 'ADD_TO_CART', pageType: 'PRODUCT_DETAIL', elementId: 'add-to-cart-btn', sessionId, userId, extra: { productId: prodId, price, lastExhibitionId: exId } });
     }
-  } else if (rand < 0.92) {
-    eventsDatabase.push({ timestamp: now, type: 'PAGE_VIEW', pageType: 'CHECKOUT', url: '/order/payment', sessionId, userId, extra: {} });
   } else {
-    const p = prodPool[Math.floor(Math.random() * prodPool.length)];
+    // Purchase order completes! Attributes to the last exhibition
+    const price = 120000 + Math.floor(Math.random() * 400000);
     const ordId = 'LF_' + Math.floor(200000 + Math.random() * 800000);
-    eventsDatabase.push({ timestamp: now, type: 'PURCHASE', pageType: 'CHECKOUT', elementId: 'pay-now-btn', sessionId, userId, extra: { orderId: ordId, revenue: p.price } });
-    eventsDatabase.push({ timestamp: now + 50, type: 'PAGE_VIEW', pageType: 'PURCHASE', url: '/order/complete', sessionId, userId, extra: {} });
+    eventsDatabase.push({ timestamp: now, type: 'PURCHASE', pageType: 'CHECKOUT', elementId: 'pay-now-btn', sessionId, userId, extra: { orderId: ordId, revenue: price, attributedExhibitionId: exId } });
+    eventsDatabase.push({ timestamp: now + 60, type: 'PAGE_VIEW', pageType: 'PURCHASE', url: '/order/complete', sessionId, userId, extra: {} });
   }
 
-  res.json({ success: true, message: 'Artificial shopper traffic packet dispatched.' });
+  res.json({ success: true, message: 'Artificial exhibition shopper traffic packet dispatched.' });
 });
 
-// App fallback to serve React dashboard
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.listen(PORT, () => {
-  console.log(`LF Mall Growth Telemetry Server listening on http://localhost:${PORT}`);
+  console.log(`LF Mall Exhibition Analytics Server listening on http://localhost:${PORT}`);
 });

@@ -1,6 +1,11 @@
 # Cursor AI Coding Rules - Clay.com Aesthetic (GTM Analytics System)
 
+## 🌐 Language Policy (Non-Negotiable)
+- **Korean (국문) is the absolute standard** for all documentation, system specifications, implementation plans, user guides, UI labels, dashboard metrics, and user interactions.
+- All code comments, logs, and system explanations must also prioritize Korean.
+
 You are an expert React and CSS engineer tasked with building an analytics prototype. All frontend, styling, and UI logic in this repository must strictly adhere to the custom **Clay.com Design System** specified below.
+
 
 ## 🎨 Essential Design Rules
 
