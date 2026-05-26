@@ -441,47 +441,88 @@
     // ==========================================================================
 
     function AnalyticsDashboard() {
-      const [stats, setStats] = useState(getSummaryStats());
-      const [funnel, setFunnel] = useState(getFunnelData());
-      const [pages, setPages] = useState(getPagePerformance());
-      const [logs, setLogs] = useState(getRealtimeLogs());
-      const [isSimulating, setIsSimulating] = useState(false);
-      const [simCount, setSimCount] = useState(0);
+      const isLiveServer = window.location.protocol.startsWith('http');
 
-      const refresh = () => {
-        setStats(getSummaryStats());
-        setFunnel(getFunnelData());
-        setPages(getPagePerformance());
-        setLogs(getRealtimeLogs());
+      const refresh = async () => {
+        if (isLiveServer) {
+          try {
+            const res = await fetch('/api/stats');
+            const data = await res.json();
+            setStats(data.stats);
+            setFunnel(data.funnel);
+            setPages(data.pages);
+            setLogs(data.logs);
+          } catch (e) {
+            console.error("Failed to fetch live stats from server.", e);
+          }
+        } else {
+          setStats(getSummaryStats());
+          setFunnel(getFunnelData());
+          setPages(getPagePerformance());
+          setLogs(getRealtimeLogs());
+        }
       };
 
       useEffect(() => {
-        window.addEventListener('clay_analytics_update', refresh);
-        return () => window.removeEventListener('clay_analytics_update', refresh);
+        if (isLiveServer) {
+          refresh();
+          const poll = setInterval(refresh, 2500); // Live poll every 2.5s
+          return () => clearInterval(poll);
+        } else {
+          window.addEventListener('clay_analytics_update', refresh);
+          return () => window.removeEventListener('clay_analytics_update', refresh);
+        }
       }, []);
 
       useEffect(() => {
         let timer = null;
         if (isSimulating) {
-          timer = setInterval(() => {
-            simulateUserTraffic();
-            setSimCount(c => c + 1);
+          timer = setInterval(async () => {
+            if (isLiveServer) {
+              try {
+                await fetch('/api/simulate', { method: 'POST' });
+                refresh();
+              } catch (e) {
+                console.error("Failed to simulate traffic on live server.", e);
+              }
+            } else {
+              simulateUserTraffic();
+              setSimCount(c => c + 1);
+            }
           }, 1500);
         }
         return () => { if (timer) clearInterval(timer); };
       }, [isSimulating]);
 
-      const handleClear = () => {
+      const handleClear = async () => {
         if (confirm('모든 수집된 트래픽 통계 로그를 삭제하고 초기화하시겠습니까?')) {
-          resetDatabase();
-          setIsSimulating(false);
-          setSimCount(0);
+          if (isLiveServer) {
+            try {
+              await fetch('/api/reset', { method: 'POST' });
+              refresh();
+            } catch (e) {
+              console.error("Failed to reset database on live server.", e);
+            }
+          } else {
+            resetDatabase();
+            setIsSimulating(false);
+            setSimCount(0);
+          }
         }
       };
 
-      const handleSimSingle = () => {
-        simulateUserTraffic();
-        setSimCount(c => c + 1);
+      const handleSimSingle = async () => {
+        if (isLiveServer) {
+          try {
+            await fetch('/api/simulate', { method: 'POST' });
+            refresh();
+          } catch (e) {
+            console.error("Failed to simulate single action on live server.", e);
+          }
+        } else {
+          simulateUserTraffic();
+          setSimCount(c => c + 1);
+        }
       };
 
       const formatTime = (ts) => {
