@@ -441,6 +441,13 @@
     // ==========================================================================
 
     function AnalyticsDashboard() {
+      const [stats, setStats] = useState(getSummaryStats());
+      const [funnel, setFunnel] = useState(getFunnelData());
+      const [pages, setPages] = useState(getPagePerformance());
+      const [logs, setLogs] = useState(getRealtimeLogs());
+      const [isSimulating, setIsSimulating] = useState(false);
+      const [simCount, setSimCount] = useState(0);
+
       const isLiveServer = window.location.protocol.startsWith('http') && !window.location.hostname.endsWith('github.io');
 
       const refresh = async () => {
