@@ -8,7 +8,7 @@
   ],
   "routes": [
     {
-      "src": "/(style.css|exhibition_analytics_icon.png|app.js|store.js|dashboard.js|tracker.js)",
+      "src": "/(style.css|exhibition_analytics_icon.png|app.js|store.js|dashboard.js|tracker.js|components/.*)",
       "continue": true
     },
     {
