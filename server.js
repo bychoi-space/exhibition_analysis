@@ -267,6 +267,14 @@ function extractExhibitionId(urlPath) {
   // Pattern B: /planning.do?cmd=getEventDetail&datacls=992831
   const matchB = urlPath.match(/datacls=([a-zA-Z0-9_-]+)/);
   if (matchB) return matchB[1];
+
+  // Pattern C: /app/exhibition/menu/301
+  const matchC = urlPath.match(/\/app\/exhibition\/menu\/([a-zA-Z0-9_-]+)/);
+  if (matchC) return matchC[1];
+
+  // Pattern D: /app/exhibition/301
+  const matchD = urlPath.match(/\/app\/exhibition\/([a-zA-Z0-9_-]+)/);
+  if (matchD) return matchD[1];
   
   return null;
 }
