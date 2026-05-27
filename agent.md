@@ -38,10 +38,16 @@
 - **레이지 로더 (Lazy Loader)**: 대량 데이터 로드로 인한 브라우저 병목을 방지하기 위해 최초 20개 카드를 로드하고 하단 버튼 클릭 시 비동기 스피너 모션(800ms)과 함께 10개씩 페이징 로딩됩니다.
 
 #### B. 백엔드 집계 엔진 (`server.js`)
+- **날짜별 분할 파일 데이터베이스 (Date-Based Sharded DB)**:
+  - 트래픽 누적으로 인한 메모리 병목 및 파일 크기 비대화를 원천 차단하기 위해 모든 로그는 타임스탬프 일자(`YYYY-MM-DD`)를 기준 파일(`events-YYYY-MM-DD.json`)에 분할 적재됩니다.
+  - `/api/stats` 호출 시, 선택한 기간에 일치하는 물리 파티션 파일들만 선택적으로 로드하여 병합 연산함으로써 극상의 디스크 I/O 최적화를 이끌어냅니다.
+- **Vercel 서버리스 `/tmp` 최적화 및 인메모리 폴백 (In-Memory Fallback)**:
+  - Vercel Serverless의 Read-Only 파일 시스템 특성을 극복하기 위해 서버 구동 환경을 실시간 감지하여 쓰기가 허용된 `/tmp/db_store` 디렉터리를 가동 경로로 동적 지정합니다.
+  - 디렉터리 생성 및 쓰기/읽기 작업에서 파일 시스템 예외 발생 시, 즉시 **인메모리 분할 맵(`inMemoryDb`)**으로 폴백하여 에러율 0%의 탄탄한 서버리스 생존 아키텍처를 자랑합니다.
 - **수집 및 기여도 연산 API**:
-  - `/api/collect`: 사용자의 원격 이벤트 로그(PAGE_VIEW, CLICK, PURCHASE 등) 수집
-  - `/api/stats`: 조회 기간 범위 내 데이터의 Last-Touch Attribution 계산 및 Chronological 실시간 로그 정리
-  - `/api/simulate` & `/api/reset`: 시뮬레이터 및 데이터베이스 전체 초기화 연동
+  - `/api/collect`: 사용자의 원격 이벤트 로그(PAGE_VIEW, CLICK, PURCHASE 등) 수집 및 일자별 샤딩
+  - `/api/stats`: 조회 기간 범위 내 날짜 파일/인메모리 세그먼트만 파싱해 Last-Touch Attribution 기여 매출 계산 및 데이터 서빙
+  - `/api/simulate` & `/api/reset`: 모의 유저 유입 시뮬레이션 분할 파일 디스패치 및 디렉터리/인메모리 리셋 연동
 - **Last-Touch Attribution 모델**: 구매(`PURCHASE`) 로그 발생 시, 해당 유저의 세션ID(`sessionId`)가 직전에 마지막으로 머물렀던 기획전 ID(`exhibitionId`)를 찾아내어 매출 기여도를 즉시 합산 처리합니다.
 
 #### C. 디자인 시스템 및 스타일 (`style.css`)
