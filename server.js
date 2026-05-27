@@ -11,7 +11,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors({
-  origin: '*',
+  origin: function(origin, callback) {
+    // Dynamically mirror the requesting origin to satisfy credential include requirements
+    if (!origin) return callback(null, true);
+    return callback(null, true);
+  },
+  credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
