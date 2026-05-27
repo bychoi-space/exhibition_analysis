@@ -333,12 +333,9 @@ app.post('/api/collect', async (req, res) => {
   const d = String(dateObj.getDate()).padStart(2, '0');
   const dateStr = `${y}-${m}-${d}`;
 
-  if (useInMemoryFallback) {
-    if (!inMemoryDb[dateStr]) inMemoryDb[dateStr] = [];
-    inMemoryDb[dateStr].push(newEvent);
-    console.log(`[INGESTION-FALLBACK] Logged event to in-memory shard: ${dateStr}`);
-    return res.status(202).json({ success: true, message: 'Telemetry packet logged to in-memory shard.' });
-  }
+  // Always dual-write to in-memory store as an active serverless safety net!
+  if (!inMemoryDb[dateStr]) inMemoryDb[dateStr] = [];
+  inMemoryDb[dateStr].push(newEvent);
 
   const filePath = path.join(DB_DIR, `events-${dateStr}.json`);
 
@@ -351,14 +348,11 @@ app.post('/api/collect', async (req, res) => {
     fileEvents.push(newEvent);
     await fs.promises.writeFile(filePath, JSON.stringify(fileEvents, null, 2), 'utf-8');
     
-    console.log(`[INGESTION-SHARDED] Logged event ${type} to file events-${dateStr}.json`);
+    console.log(`[INGESTION-SHARDED] Logged event ${type} to file and memory: events-${dateStr}.json`);
     res.status(202).json({ success: true, message: 'Telemetry packet sharded successfully.' });
   } catch (err) {
-    console.warn("[INGESTION-WARNING] File system write failed. Gracefully falling back to in-memory log.", err.message);
-    useInMemoryFallback = true;
-    if (!inMemoryDb[dateStr]) inMemoryDb[dateStr] = [];
-    inMemoryDb[dateStr].push(newEvent);
-    res.status(202).json({ success: true, message: 'Telemetry packet logged to fallback in-memory shard.' });
+    console.warn("[INGESTION-WARNING] File system write failed. In-memory log holds backup.", err.message);
+    res.status(202).json({ success: true, message: 'Telemetry packet logged to in-memory backup.' });
   }
 });
 
@@ -383,36 +377,45 @@ app.get('/api/stats', async (req, res) => {
     }
   }
 
-  // 2. Read only the sharded files in the query window
+  // 2. Read only the sharded files in the query window (Merging File + Memory Backup Concurrently)
   let events = [];
   try {
     for (const dateStr of dateList) {
-      if (useInMemoryFallback) {
-        if (inMemoryDb[dateStr]) {
-          events = events.concat(inMemoryDb[dateStr]);
-        }
-      } else {
-        const filePath = path.join(DB_DIR, `events-${dateStr}.json`);
-        if (fs.existsSync(filePath)) {
+      let segmentEvents = [];
+      
+      // A. Attempt to read from file sharding
+      const filePath = path.join(DB_DIR, `events-${dateStr}.json`);
+      if (fs.existsSync(filePath)) {
+        try {
           const content = await fs.promises.readFile(filePath, 'utf-8');
-          const fileEvents = JSON.parse(content || '[]');
-          events = events.concat(fileEvents);
-        } else if (inMemoryDb[dateStr]) {
-          events = events.concat(inMemoryDb[dateStr]);
+          segmentEvents = JSON.parse(content || '[]');
+        } catch(e) {
+          console.warn(`[STATS-READ-FILE-FAIL] Failed reading segment events-${dateStr}.json`, e.message);
         }
       }
+
+      // B. Fetch and merge in-memory logs to prevent any gaps
+      if (inMemoryDb[dateStr] && inMemoryDb[dateStr].length > 0) {
+        // Prevent duplication: check unique fingerprints (combination of timestamp + userId + type + url)
+        const existingFingerprints = new Set(segmentEvents.map(e => `${e.timestamp}_${e.userId}_${e.type}_${e.url}`));
+        
+        inMemoryDb[dateStr].forEach(memEvent => {
+          const fingerprint = `${memEvent.timestamp}_${memEvent.userId}_${memEvent.type}_${memEvent.url}`;
+          if (!existingFingerprints.has(fingerprint)) {
+            segmentEvents.push(memEvent);
+          }
+        });
+      }
+
+      events = events.concat(segmentEvents);
     }
   } catch (err) {
-    console.warn("[STATS-WARNING] Failed to read sharded database from filesystem. Trying in-memory backup...", err.message);
-    try {
-      events = [];
-      for (const dateStr of dateList) {
-        if (inMemoryDb[dateStr]) {
-          events = events.concat(inMemoryDb[dateStr]);
-        }
+    console.warn("[STATS-WARNING] Unified database retrieval encountered issues. Falling back to absolute in-memory query...", err.message);
+    events = [];
+    for (const dateStr of dateList) {
+      if (inMemoryDb[dateStr]) {
+        events = events.concat(inMemoryDb[dateStr]);
       }
-    } catch (fallbackErr) {
-      return res.status(500).json({ success: false, message: 'Database read failure.' });
     }
   }
   
