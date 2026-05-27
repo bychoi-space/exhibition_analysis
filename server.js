@@ -5,6 +5,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,8 +24,11 @@ app.get('/style.css', (req, res) => {
   res.sendFile(path.join(__dirname, 'style.css'));
 });
 
-// --- Simulated In-Memory Database & Seed Engine ---
-let eventsDatabase = [];
+// --- Sharded Database Store Initialization ---
+const DB_DIR = path.join(__dirname, 'db_store');
+if (!fs.existsSync(DB_DIR)) {
+  fs.mkdirSync(DB_DIR);
+}
 
 // Clean database seed tailored specifically for active LF Mall Exhibitions
 const EXHIBITION_METADATA = {
@@ -232,9 +236,27 @@ function seedServerDatabase() {
       }
     }
   }
-  
   events.sort((a, b) => a.timestamp - b.timestamp);
-  eventsDatabase = events;
+  
+  // Group events by date YYYY-MM-DD
+  const grouped = {};
+  events.forEach(e => {
+    const dateObj = new Date(e.timestamp);
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    const dateStr = `${y}-${m}-${d}`;
+    if (!grouped[dateStr]) grouped[dateStr] = [];
+    grouped[dateStr].push(e);
+  });
+  
+  // Write each date's partition file to db_store
+  Object.keys(grouped).forEach(dateStr => {
+    const filePath = path.join(DB_DIR, `events-${dateStr}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(grouped[dateStr], null, 2));
+  });
+  
+  console.log(`Seeding complete. Generated ${Object.keys(grouped).length} sharded database files.`);
   return events;
 }
 
@@ -259,7 +281,7 @@ function extractExhibitionId(urlPath) {
 // --- REST API ENDPOINTS ---
 
 // 1. Data Ingestion Endpoint (Upgraded GTM telemetry tag calls this)
-app.post('/api/collect', (req, res) => {
+app.post('/api/collect', async (req, res) => {
   const { timestamp, type, pageType, url, sessionId, userId, extra, elementId } = req.body;
   
   if (!type || !sessionId || !userId) {
@@ -268,10 +290,10 @@ app.post('/api/collect', (req, res) => {
 
   // Auto-extract exhibition ID on server side as an extra safety measure!
   let exhibitionId = extra?.exhibitionId || extractExhibitionId(url || '');
-  let attributedEx = extra?.attributedExhibitionId || null;
+  const ts = timestamp || Date.now();
 
   const newEvent = {
-    timestamp: timestamp || Date.now(),
+    timestamp: ts,
     type,
     pageType: pageType || 'COMMON',
     url: url || '/',
@@ -285,32 +307,68 @@ app.post('/api/collect', (req, res) => {
     }
   };
 
-  eventsDatabase.push(newEvent);
-  console.log(`[INGESTION] Logged event ${type} for user ${userId} (Exhibition: ${exhibitionId || 'None'})`);
-  
-  res.status(202).json({ success: true, message: 'Telemetry packet accepted successfully.' });
+  // Extract YYYY-MM-DD for sharding
+  const dateObj = new Date(ts);
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const d = String(dateObj.getDate()).padStart(2, '0');
+  const dateStr = `${y}-${m}-${d}`;
+
+  const filePath = path.join(DB_DIR, `events-${dateStr}.json`);
+
+  try {
+    let fileEvents = [];
+    if (fs.existsSync(filePath)) {
+      const content = await fs.promises.readFile(filePath, 'utf-8');
+      fileEvents = JSON.parse(content || '[]');
+    }
+    fileEvents.push(newEvent);
+    await fs.promises.writeFile(filePath, JSON.stringify(fileEvents, null, 2), 'utf-8');
+    
+    console.log(`[INGESTION-SHARDED] Logged event ${type} for user ${userId} to file events-${dateStr}.json`);
+    res.status(202).json({ success: true, message: 'Telemetry packet sharded successfully.' });
+  } catch (err) {
+    console.error("Failed to write sharded event log:", err);
+    res.status(500).json({ success: false, message: 'Database write failure.' });
+  }
 });
 
 // 2. Get Exhibition-Focused Aggregated Statistics (Last-Touch Attribution Worker)
-app.get('/api/stats', (req, res) => {
+app.get('/api/stats', async (req, res) => {
   const { startDate, endDate } = req.query;
-  let filteredEvents = eventsDatabase;
   
+  // 1. Identify relevant sharded query date files
+  const dateList = [];
   if (startDate && endDate) {
-    const startParts = startDate.split('-');
-    const endParts = endDate.split('-');
-    
-    if (startParts.length === 3 && endParts.length === 3) {
-      const startTimestamp = new Date(parseInt(startParts[0]), parseInt(startParts[1]) - 1, parseInt(startParts[2]), 0, 0, 0, 0).getTime();
-      const endTimestamp = new Date(parseInt(endParts[0]), parseInt(endParts[1]) - 1, parseInt(endParts[2]), 23, 59, 59, 999).getTime();
-      
-      if (!isNaN(startTimestamp) && !isNaN(endTimestamp)) {
-        filteredEvents = eventsDatabase.filter(e => e.timestamp >= startTimestamp && e.timestamp <= endTimestamp);
-      }
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    let current = new Date(start.getTime());
+    let limit = 60; // Safety boundary
+    while (current <= end && limit > 0) {
+      const y = current.getFullYear();
+      const m = String(current.getMonth() + 1).padStart(2, '0');
+      const d = String(current.getDate()).padStart(2, '0');
+      dateList.push(`${y}-${m}-${d}`);
+      current.setDate(current.getDate() + 1);
+      limit--;
     }
   }
 
-  const events = filteredEvents;
+  // 2. Read only the sharded files in the query window
+  let events = [];
+  try {
+    for (const dateStr of dateList) {
+      const filePath = path.join(DB_DIR, `events-${dateStr}.json`);
+      if (fs.existsSync(filePath)) {
+        const content = await fs.promises.readFile(filePath, 'utf-8');
+        const fileEvents = JSON.parse(content || '[]');
+        events = events.concat(fileEvents);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to read sharded database:", err);
+    return res.status(500).json({ success: false, message: 'Database read failure.' });
+  }
   
   // --- DAILY PERFORMANCE CALCULATION ---
   const dailyStatsMap = {};
@@ -505,12 +563,24 @@ app.get('/api/stats', (req, res) => {
 
 // 3. Clear and Re-seed
 app.post('/api/reset', (req, res) => {
-  seedServerDatabase();
-  res.json({ success: true, message: 'Database reset and seeded with initial parameters.' });
+  try {
+    const files = fs.readdirSync(DB_DIR);
+    for (const file of files) {
+      if (file.endsWith('.json')) {
+        fs.unlinkSync(path.join(DB_DIR, file));
+      }
+    }
+    console.log('[RESET] Wiped existing sharded database files.');
+    seedServerDatabase();
+    res.json({ success: true, message: 'Database reset and seeded with initial parameters.' });
+  } catch (err) {
+    console.error("Failed to reset database files:", err);
+    res.status(500).json({ success: false, message: 'Failed to reset database.' });
+  }
 });
 
 // 4. Simulate Background Shopper actions (Focused entirely on exhibitions!)
-app.post('/api/simulate', (req, res) => {
+app.post('/api/simulate', async (req, res) => {
   const userPool = Array.from({ length: 15 }, (_, i) => `sim_user_lf_${Math.floor(Math.random() * 800)}`);
   const exPool = Object.keys(EXHIBITION_METADATA);
   
@@ -522,17 +592,18 @@ app.post('/api/simulate', (req, res) => {
   
   // Choose exhibition
   const exId = exPool[Math.floor(Math.random() * exPool.length)];
+  const simEvents = [];
   
   if (rand < 0.4) {
     // Visit Home first, then navigate
-    eventsDatabase.push({ timestamp: now, type: 'PAGE_VIEW', pageType: 'HOME', url: '/', sessionId, userId, extra: { referrer: 'direct_traffic' } });
+    simEvents.push({ timestamp: now, type: 'PAGE_VIEW', pageType: 'HOME', url: '/', sessionId, userId, extra: { referrer: 'direct_traffic' } });
   } else if (rand < 0.75) {
     // Visit Exhibition directly
     const path = Math.random() < 0.5 
       ? `/app/event/${exId}` 
       : `/planning.do?cmd=getEventDetail&datacls=${exId}`;
       
-    eventsDatabase.push({
+    simEvents.push({
       timestamp: now,
       type: 'PAGE_VIEW',
       pageType: 'CATEGORY',
@@ -545,7 +616,7 @@ app.post('/api/simulate', (req, res) => {
     // Simulate clicking inside the exhibition
     const clickRand = Math.random();
     if (clickRand < 0.5) {
-      eventsDatabase.push({
+      simEvents.push({
         timestamp: now + 500,
         type: 'CLICK',
         pageType: 'CATEGORY',
@@ -555,7 +626,7 @@ app.post('/api/simulate', (req, res) => {
         extra: { exhibitionId: exId }
       });
     } else if (clickRand < 0.8) {
-      eventsDatabase.push({
+      simEvents.push({
         timestamp: now + 800,
         type: 'CLICK',
         pageType: 'CATEGORY',
@@ -570,20 +641,44 @@ app.post('/api/simulate', (req, res) => {
     const prodId = `LF-PROD-${10000 + Math.floor(Math.random() * 90000)}`;
     const price = 80000 + Math.floor(Math.random() * 350000);
     
-    eventsDatabase.push({ timestamp: now, type: 'PAGE_VIEW', pageType: 'PRODUCT_DETAIL', url: `/product/${prodId}`, sessionId, userId, extra: { productId: prodId, lastExhibitionId: exId } });
+    simEvents.push({ timestamp: now, type: 'PAGE_VIEW', pageType: 'PRODUCT_DETAIL', url: `/product/${prodId}`, sessionId, userId, extra: { productId: prodId, lastExhibitionId: exId } });
     
     if (Math.random() < 0.5) {
-      eventsDatabase.push({ timestamp: now + 500, type: 'ADD_TO_CART', pageType: 'PRODUCT_DETAIL', elementId: 'add-to-cart-btn', sessionId, userId, extra: { productId: prodId, price, lastExhibitionId: exId } });
+      simEvents.push({ timestamp: now + 500, type: 'ADD_TO_CART', pageType: 'PRODUCT_DETAIL', elementId: 'add-to-cart-btn', sessionId, userId, extra: { productId: prodId, price, lastExhibitionId: exId } });
     }
   } else {
     // Purchase order completes! Attributes to the last exhibition
     const price = 120000 + Math.floor(Math.random() * 400000);
     const ordId = 'LF_' + Math.floor(200000 + Math.random() * 800000);
-    eventsDatabase.push({ timestamp: now, type: 'PURCHASE', pageType: 'CHECKOUT', elementId: 'pay-now-btn', sessionId, userId, extra: { orderId: ordId, revenue: price, attributedExhibitionId: exId } });
-    eventsDatabase.push({ timestamp: now + 60, type: 'PAGE_VIEW', pageType: 'PURCHASE', url: '/order/complete', sessionId, userId, extra: {} });
+    simEvents.push({ timestamp: now, type: 'PURCHASE', pageType: 'CHECKOUT', elementId: 'pay-now-btn', sessionId, userId, extra: { orderId: ordId, revenue: price, attributedExhibitionId: exId } });
+    simEvents.push({ timestamp: now + 60, type: 'PAGE_VIEW', pageType: 'PURCHASE', url: '/order/complete', sessionId, userId, extra: {} });
   }
 
-  res.json({ success: true, message: 'Artificial exhibition shopper traffic packet dispatched.' });
+  // Save the simulated events into their respective date shards
+  try {
+    for (const e of simEvents) {
+      const dateObj = new Date(e.timestamp);
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${m}-${d}`;
+      const filePath = path.join(DB_DIR, `events-${dateStr}.json`);
+      
+      let fileEvents = [];
+      if (fs.existsSync(filePath)) {
+        const content = await fs.promises.readFile(filePath, 'utf-8');
+        fileEvents = JSON.parse(content || '[]');
+      }
+      fileEvents.push(e);
+      await fs.promises.writeFile(filePath, JSON.stringify(fileEvents, null, 2), 'utf-8');
+    }
+    
+    console.log(`[SIMULATION-SHARDED] Dispatched ${simEvents.length} events into date sharded files.`);
+    res.json({ success: true, message: 'Artificial exhibition shopper traffic packet dispatched.' });
+  } catch (err) {
+    console.error("Failed to write simulation sharded logs:", err);
+    res.status(500).json({ success: false, message: 'Simulation database write failure.' });
+  }
 });
 
 app.get('*', (req, res) => {
