@@ -457,9 +457,14 @@ app.get('/api/stats', async (req, res) => {
     const d = String(dateObj.getDate()).padStart(2, '0');
     const dateStr = `${y}-${m}-${d}`;
 
-     // 2. Trace the last visited exhibition in this session
+    // 2. Trace the last visited exhibition in this session
     const currentExId = e.extra?.exhibitionId || extractExhibitionId(e.url || '');
-    if (currentExId && EXHIBITION_METADATA[currentExId]) {
+    if (currentExId) {
+      // Auto register missing exhibition metadata to prevent loop drops
+      if (!EXHIBITION_METADATA[currentExId]) {
+        EXHIBITION_METADATA[currentExId] = e.extra?.exhibitionTitle || `기획전 캠페인_${currentExId}`;
+      }
+
       sessionToLastExhibition[e.sessionId] = currentExId;
       
       // Dynamic on-the-fly stats initialization
@@ -476,20 +481,19 @@ app.get('/api/stats', async (req, res) => {
         };
       }
       
-      // Update exhibition traffic metrics
+      // Safe fallback: Since live GTM ONLY fires CLICK events, we MUST treat CLICK activity
+      // as active Page Views and Unique Visitors to dynamically populate PV/UV dashboard metrics!
       const stats = exhibitionStats[currentExId];
-      if (e.type === 'PAGE_VIEW') {
-        stats.pv++;
-        stats.uvSet.add(e.userId);
-        
-        if (!stats.sessionTimes[e.sessionId]) stats.sessionTimes[e.sessionId] = [];
-        stats.sessionTimes[e.sessionId].push(e.timestamp);
+      stats.pv++;
+      stats.uvSet.add(e.userId);
+      
+      if (!stats.sessionTimes[e.sessionId]) stats.sessionTimes[e.sessionId] = [];
+      stats.sessionTimes[e.sessionId].push(e.timestamp);
 
-        // Track daily metrics
-        if (dailyStatsMap[dateStr]) {
-          dailyStatsMap[dateStr].pv++;
-          dailyStatsMap[dateStr].uvSet.add(e.userId);
-        }
+      // Track daily metrics
+      if (dailyStatsMap[dateStr]) {
+        dailyStatsMap[dateStr].pv++;
+        dailyStatsMap[dateStr].uvSet.add(e.userId);
       }
     }
 
@@ -549,7 +553,8 @@ app.get('/api/stats', async (req, res) => {
   }).sort((a, b) => b.revenue - a.revenue); // Sort by highest revenue generated!
 
   // --- OVERALL SCORECARDS ---
-  const exPageViews = events.filter(e => e.type === 'PAGE_VIEW' && (extractExhibitionId(e.url) !== null || e.extra?.exhibitionId));
+  // GTM ONLY sends CLICKs, so we must calculate scorecard metrics based on active exhibition clicks/views
+  const exPageViews = events.filter(e => (e.type === 'PAGE_VIEW' || e.type === 'CLICK') && (extractExhibitionId(e.url) !== null || e.extra?.exhibitionId));
   const totalExPV = exPageViews.length;
   
   const totalExUV = new Set(exPageViews.map(e => e.userId)).size;
