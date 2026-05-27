@@ -270,35 +270,46 @@ function extractExhibitionId(urlPath) {
 
 // 1. Data Ingestion Endpoint (Upgraded GTM telemetry tag calls this)
 app.post('/api/collect', async (req, res) => {
-  const { timestamp, type, pageType, url, sessionId, userId, extra, elementId } = req.body;
+  const { timestamp, type, pageType, url, sessionId, userId, extra, elementId } = req.body || {};
   
-  if (!type || !sessionId || !userId) {
-    return res.status(400).json({ success: false, message: 'Missing essential properties.' });
-  }
+  // Relaxed validation: If essential keys are missing, populate defaults instead of throwing 400 Bad Request
+  const finalType = type || 'PAGE_VIEW';
+  const finalSessionId = sessionId || `sess_fallback_${Math.random().toString(36).substring(2, 10)}`;
+  const finalUserId = userId || `user_fallback_${Math.random().toString(36).substring(2, 10)}`;
+  const finalPageType = pageType || 'COMMON';
+  const finalUrl = url || '/';
+  const finalElementId = elementId || '';
 
   // Auto-extract exhibition ID on server side as an extra safety measure!
-  let exhibitionId = extra?.exhibitionId || extractExhibitionId(url || '');
+  let exhibitionId = extra?.exhibitionId || extractExhibitionId(finalUrl);
   
-  // Dynamic self-registration: If we see a new exhibitionId accompanied by a scraped exhibitionTitle, register it dynamically!
-  if (exhibitionId && extra?.exhibitionTitle && !EXHIBITION_METADATA[exhibitionId]) {
-    EXHIBITION_METADATA[exhibitionId] = extra.exhibitionTitle;
-    console.log(`[DATABASE-DYNAMIC] Registered new exhibition dynamically: [ID: ${exhibitionId}] - ${extra.exhibitionTitle}`);
+  // Clean up and construct safe extra parameters
+  const safeExtra = extra || {};
+  if (exhibitionId && !safeExtra.exhibitionTitle) {
+    // If title is missing, fallback to title mapped in metadata, or assign a friendly default
+    safeExtra.exhibitionTitle = EXHIBITION_METADATA[exhibitionId] || `기획전 캠페인_${exhibitionId}`;
+  }
+
+  // Dynamic self-registration: If we see a new exhibitionId, register it dynamically!
+  if (exhibitionId && !EXHIBITION_METADATA[exhibitionId]) {
+    EXHIBITION_METADATA[exhibitionId] = safeExtra.exhibitionTitle || `기획전 캠페인_${exhibitionId}`;
+    console.log(`[DATABASE-DYNAMIC] Registered new exhibition dynamically: [ID: ${exhibitionId}] - ${EXHIBITION_METADATA[exhibitionId]}`);
   }
 
   const ts = timestamp || Date.now();
 
   const newEvent = {
     timestamp: ts,
-    type,
-    pageType: pageType || 'COMMON',
-    url: url || '/',
-    sessionId,
-    userId,
-    elementId: elementId || '',
+    type: finalType,
+    pageType: finalPageType,
+    url: finalUrl,
+    sessionId: finalSessionId,
+    userId: finalUserId,
+    elementId: finalElementId,
     extra: {
-      ...extra,
+      ...safeExtra,
       exhibitionId: exhibitionId || undefined,
-      exhibitionTitle: exhibitionId ? (EXHIBITION_METADATA[exhibitionId] || extra?.exhibitionTitle) : undefined
+      exhibitionTitle: exhibitionId ? (EXHIBITION_METADATA[exhibitionId] || safeExtra.exhibitionTitle) : undefined
     }
   };
 
