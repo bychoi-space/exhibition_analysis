@@ -622,121 +622,12 @@ app.post('/api/reset', (req, res) => {
   }
 });
 
-// 4. Simulate Background Shopper actions (Focused entirely on exhibitions!)
+// 4. Simulate Background Shopper actions (DEPRECATED - Disabled for 100% real GTM data enforcement)
 app.post('/api/simulate', async (req, res) => {
-  const userPool = Array.from({ length: 15 }, (_, i) => `sim_user_lf_${Math.floor(Math.random() * 800)}`);
-  const exPool = Object.keys(EXHIBITION_METADATA);
-  
-  const userId = userPool[Math.floor(Math.random() * userPool.length)];
-  const sessionId = 'sim_sess_lf_' + Math.random().toString(36).substr(2, 7);
-  
-  const now = Date.now();
-  const rand = Math.random();
-  
-  // Choose exhibition
-  const exId = exPool[Math.floor(Math.random() * exPool.length)];
-  const simEvents = [];
-  
-  if (rand < 0.4) {
-    // Visit Home first, then navigate
-    simEvents.push({ timestamp: now, type: 'PAGE_VIEW', pageType: 'HOME', url: '/', sessionId, userId, extra: { referrer: 'direct_traffic' } });
-  } else if (rand < 0.75) {
-    // Visit Exhibition directly
-    const path = Math.random() < 0.5 
-      ? `/app/event/${exId}` 
-      : `/planning.do?cmd=getEventDetail&datacls=${exId}`;
-      
-    simEvents.push({
-      timestamp: now,
-      type: 'PAGE_VIEW',
-      pageType: 'CATEGORY',
-      url: path,
-      sessionId,
-      userId,
-      extra: { exhibitionId: exId, exhibitionTitle: EXHIBITION_METADATA[exId] }
-    });
-
-    // Simulate clicking inside the exhibition
-    const clickRand = Math.random();
-    if (clickRand < 0.5) {
-      simEvents.push({
-        timestamp: now + 500,
-        type: 'CLICK',
-        pageType: 'CATEGORY',
-        elementId: 'product-item-link',
-        sessionId,
-        userId,
-        extra: { exhibitionId: exId }
-      });
-    } else if (clickRand < 0.8) {
-      simEvents.push({
-        timestamp: now + 800,
-        type: 'CLICK',
-        pageType: 'CATEGORY',
-        elementId: 'download-coupon-btn',
-        sessionId,
-        userId,
-        extra: { exhibitionId: exId }
-      });
-    }
-  } else if (rand < 0.9) {
-    // Click through product inside the exhibition
-    const prodId = `LF-PROD-${10000 + Math.floor(Math.random() * 90000)}`;
-    const price = 80000 + Math.floor(Math.random() * 350000);
-    
-    simEvents.push({ timestamp: now, type: 'PAGE_VIEW', pageType: 'PRODUCT_DETAIL', url: `/product/${prodId}`, sessionId, userId, extra: { productId: prodId, lastExhibitionId: exId } });
-    
-    if (Math.random() < 0.5) {
-      simEvents.push({ timestamp: now + 500, type: 'ADD_TO_CART', pageType: 'PRODUCT_DETAIL', elementId: 'add-to-cart-btn', sessionId, userId, extra: { productId: prodId, price, lastExhibitionId: exId } });
-    }
-  } else {
-    // Purchase order completes! Attributes to the last exhibition
-    const price = 120000 + Math.floor(Math.random() * 400000);
-    const ordId = 'LF_' + Math.floor(200000 + Math.random() * 800000);
-    simEvents.push({ timestamp: now, type: 'PURCHASE', pageType: 'CHECKOUT', elementId: 'pay-now-btn', sessionId, userId, extra: { orderId: ordId, revenue: price, attributedExhibitionId: exId } });
-    simEvents.push({ timestamp: now + 60, type: 'PAGE_VIEW', pageType: 'PURCHASE', url: '/order/complete', sessionId, userId, extra: {} });
-  }
-
-  // Save the simulated events into their respective date shards
-  try {
-    for (const e of simEvents) {
-      const dateObj = new Date(e.timestamp);
-      const y = dateObj.getFullYear();
-      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-      const d = String(dateObj.getDate()).padStart(2, '0');
-      const dateStr = `${y}-${m}-${d}`;
-
-      if (useInMemoryFallback) {
-        if (!inMemoryDb[dateStr]) inMemoryDb[dateStr] = [];
-        inMemoryDb[dateStr].push(e);
-      } else {
-        const filePath = path.join(DB_DIR, `events-${dateStr}.json`);
-        let fileEvents = [];
-        if (fs.existsSync(filePath)) {
-          const content = await fs.promises.readFile(filePath, 'utf-8');
-          fileEvents = JSON.parse(content || '[]');
-        }
-        fileEvents.push(e);
-        await fs.promises.writeFile(filePath, JSON.stringify(fileEvents, null, 2), 'utf-8');
-      }
-    }
-    
-    console.log(`[SIMULATION] Dispatched ${simEvents.length} events (fallback: ${useInMemoryFallback}).`);
-    res.json({ success: true, message: 'Artificial exhibition shopper traffic packet dispatched.' });
-  } catch (err) {
-    console.warn("[SIMULATION-WARNING] Failed to write simulation sharded logs to filesystem. Falling back to in-memory.", err.message);
-    useInMemoryFallback = true;
-    for (const e of simEvents) {
-      const dateObj = new Date(e.timestamp);
-      const y = dateObj.getFullYear();
-      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-      const d = String(dateObj.getDate()).padStart(2, '0');
-      const dateStr = `${y}-${m}-${d}`;
-      if (!inMemoryDb[dateStr]) inMemoryDb[dateStr] = [];
-      inMemoryDb[dateStr].push(e);
-    }
-    res.json({ success: true, message: 'Artificial exhibition shopper traffic packet dispatched to fallback in-memory store.' });
-  }
+  return res.status(403).json({ 
+    success: false, 
+    message: 'Simulation engine is disabled in production to guarantee 100% authentic, real GTM/Telemetry data integrity.' 
+  });
 });
 
 app.get('*', (req, res) => {

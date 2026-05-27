@@ -32,8 +32,7 @@ export const getRawEvents = () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      // If empty, initialize database with realistic pre-populated historical data
-      return seedDatabase();
+      return [];
     }
     return JSON.parse(raw);
   } catch (e) {

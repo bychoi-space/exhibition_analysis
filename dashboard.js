@@ -337,43 +337,20 @@ export default function AnalyticsDashboard() {
         </div>
       </div>
 
-      {/* 5. Simulation & Control Board */}
+      {/* 5. Telemetry Management Board */}
       <div className="simulation-drawer">
         <div className="simulation-info-text">
           <h4 className="title-sm" style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-            <span>⚙️</span> Interactive Simulation Control Board
+            <span>⚙️</span> Interactive Telemetry Control Board
           </h4>
           <p className="body-sm" style={{color: 'var(--colors-muted)'}}>
-            Generate artificial traffic to test the scale, response speeds, and chart rendering of the dashboard.
+            Wipe and reset the live telemetry database logs to start over on a clean slate.
           </p>
         </div>
         
         <div style={{display: 'flex', gap: '12px'}}>
-          <button className="btn btn-secondary" onClick={handleSimSingle}>
-            <Zap size={14} color="var(--colors-brand-pink)" /> Simulate Single Action
-          </button>
-          
-          <button 
-            className={`btn ${isSimulating ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setIsSimulating(!isSimulating)}
-            style={{
-              backgroundColor: isSimulating ? 'var(--colors-brand-pink)' : 'var(--colors-canvas)',
-              color: isSimulating ? '#ffffff' : 'var(--colors-ink)'
-            }}
-          >
-            {isSimulating ? (
-              <>
-                <Pause size={14} /> Stop Continuous Sim
-              </>
-            ) : (
-              <>
-                <Play size={14} /> Start Continuous Sim
-              </>
-            )}
-          </button>
-
           <button className="btn btn-secondary" style={{color: 'var(--colors-error)'}} onClick={handleClear}>
-            <Trash2 size={14} /> Clear Database Logs
+            <Trash2 size={14} /> Clear Telemetry Database Logs
           </button>
         </div>
       </div>
