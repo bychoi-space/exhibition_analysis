@@ -22,6 +22,7 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use('/components', express.static(path.join(__dirname, 'components')));
 app.use(express.static(__dirname));
 
 app.get('/style.css', (req, res) => {
