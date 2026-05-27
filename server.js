@@ -31,14 +31,44 @@ const EXHIBITION_METADATA = {
   '103291': '닥스 봄 데일리 스페셜 위크 (DAKKS)',
   '992831': '아떼 바캉스 실크 원피스 컬렉션 (ATHE)',
   '553920': '헤지스 남성 트렌디 린넨 캐주얼 대전 (HAZZYS)',
-  '402391': '명품 해외 패션 럭셔리 시즌 오프 (LUXURY)'
+  '402391': '명품 해외 패션 럭셔리 시즌 오프 (LUXURY)',
+  '101001': '질스튜어트 뉴욕 남성 서머 에센셜 (JILLSTUART)',
+  '101002': '라푸마 캠핑 테크 서머 컬렉션 (LAFUMA)',
+  '101003': '바네사브루노 아일렛 자수 블라우스 단독 기획 (VANESSABRUNO)',
+  '101004': '콜한 초경량 남성 드레스 스니커즈 (COLE HAAN)',
+  '101005': '앳코너 로맨틱 린넨 원피스 컬렉션 (A.T.CORNER)',
+  '101006': '마에스트로 이태리 쿨 서머 비즈니스 룩 (MAESTRO)',
+  '101007': '레오나드 플로럴 실크 가디건 페스티벌 (LEONARD)',
+  '101008': 'TNGT 클래식 남성 리넨 셋업 수트 대전 (TNGT)',
+  '101009': '버켄스탁 독일 직수입 여름 샌들전 (BIRKENSTOCK)',
+  '101010': '이자벨마랑 파리지앵 서머 아우터 팝업 (ISABEL MARANT)',
+  '101011': '닥스 골프 26SS 프리미엄 필드 룩 (DAKS GOLF)',
+  '101012': '헤지스 레이디스 프렌치 리넨 셔츠전 (HAZZYS LADIES)',
+  '101013': '질바이질스튜어트 슈즈 페스티벌 (JILL BY JILLSTUART)',
+  '101014': '블랙야크 키즈 액티브 아웃도어 기획 (BLACK YAK)',
+  '101015': '일꼬르소 실루엣 린넨 니트 단독 특가 (IL CORSO)',
+  '101016': '바네사브루노 아떼 에스닉 프린트 로브 (ATHE VB)',
+  '101017': '헤지스 골프 여름 메쉬 보스턴백 컬렉션 (HAZZYS GOLF)',
+  '101018': '핏플랍 26SS 샌들 & 슬라이드 특가전 (FITFLOP)',
+  '101019': '닥스 액세서리 엠보 가죽 크로스백 (DAKS ACC)',
+  '101020': '바버 헤리티지 여름 퀼팅 자켓 & 자외선 차단 대전 (BARBOUR)',
+  '101021': '헤지스 키즈 캐주얼 피케 셔츠 균일가 (HAZZYS KIDS)',
+  '101022': '닥스 슈즈 컴포트 플랫슈즈 특가 위크 (DAKS SHOES)',
+  '101023': '이자벨마랑 에뚜왈 로맨틱 코튼 드레스 (MARANT ETOP)',
+  '101024': '질스튜어트 스포츠 통기성 쿨링 트레이닝 (JILLSTUART SPORT)',
+  '101025': '라푸마 쿨웨어 기능성 티셔츠 기획 (LAFUMA COOL)',
+  '101026': '바네사브루노 파리 패션쇼 아카이브전 (VANESSABRUNO PARIS)',
+  '101027': '레오나드 26SS 보타닉 원피스 팝업 (LEONARD BOTANIC)',
+  '101028': '콜한 제로그랜드 캐주얼 로퍼 페스티벌 (COLE HAAN ZEROGRAND)',
+  '101029': 'TNGT 미니멀 서머 반팔 니트 특전 (TNGT MINIMAL)',
+  '101030': '핏플랍 컴포트 샌들 시즌오프 특가 (FITFLOP OUTLET)'
 };
 
 function seedServerDatabase() {
   console.log('Seeding server exhibition telemetry database...');
   const events = [];
   const now = Date.now();
-  const exhibitionIds = ['103291', '992831', '553920', '402391'];
+  const exhibitionIds = Object.keys(EXHIBITION_METADATA);
   
   const userCount = 520;
   const sessionCount = 890;
@@ -81,7 +111,44 @@ function seedServerDatabase() {
       extra: { exhibitionId: exId, exhibitionTitle: EXHIBITION_METADATA[exId] }
     });
     
-    timeCursor += 8000 + Math.random() * 35000; // Users browse exhibition page for 8-43s
+    // Seed clicks within the exhibition page
+    const viewDuration = 8000 + Math.random() * 35000;
+    
+    if (Math.random() < 0.6) {
+      events.push({
+        timestamp: timeCursor + (2000 + Math.random() * 3000),
+        type: 'CLICK',
+        pageType: 'CATEGORY',
+        elementId: 'exhibition-main-banner-btn',
+        sessionId,
+        userId,
+        extra: { exhibitionId: exId }
+      });
+    }
+    if (Math.random() < 0.4) {
+      events.push({
+        timestamp: timeCursor + (5000 + Math.random() * 4000),
+        type: 'CLICK',
+        pageType: 'CATEGORY',
+        elementId: 'download-coupon-btn',
+        sessionId,
+        userId,
+        extra: { exhibitionId: exId }
+      });
+    }
+    if (Math.random() < 0.75) {
+      events.push({
+        timestamp: timeCursor + viewDuration - 1000,
+        type: 'CLICK',
+        pageType: 'CATEGORY',
+        elementId: 'product-item-link',
+        sessionId,
+        userId,
+        extra: { exhibitionId: exId }
+      });
+    }
+
+    timeCursor += viewDuration; // Users browse exhibition page for 8-43s
     
     // 3. Clicks on products inside the exhibition page (70% chance)
     if (Math.random() < 0.7) {
@@ -245,6 +312,27 @@ app.get('/api/stats', (req, res) => {
 
   const events = filteredEvents;
   
+  // --- DAILY PERFORMANCE CALCULATION ---
+  const dailyStatsMap = {};
+  const datesList = [];
+  
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    let current = new Date(start.getTime());
+    let limit = 60; // Safety cap
+    while (current <= end && limit > 0) {
+      const y = current.getFullYear();
+      const m = String(current.getMonth() + 1).padStart(2, '0');
+      const d = String(current.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${m}-${d}`;
+      datesList.push(dateStr);
+      dailyStatsMap[dateStr] = { date: dateStr, pv: 0, uvSet: new Set(), revenue: 0 };
+      current.setDate(current.getDate() + 1);
+      limit--;
+    }
+  }
+
   // --- LAST-TOUCH ATTRIBUTION CALCULATION WORKER ---
   const sessionToLastExhibition = {};
   const exhibitionStats = {};
@@ -258,13 +346,21 @@ app.get('/api/stats', (req, res) => {
       uvSet: new Set(),
       sessionTimes: {},
       attributedRevenue: 0,
-      orderCount: 0
+      orderCount: 0,
+      clicks: 0 // [NEW]
     };
   });
 
   // Walk through the logs chronologically to map sessions and attribute purchases
   events.forEach(e => {
-    // 1. Trace the last visited exhibition in this session
+    // 1. Trace the event date for daily performance calculation
+    const dateObj = new Date(e.timestamp);
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    const dateStr = `${y}-${m}-${d}`;
+
+    // 2. Trace the last visited exhibition in this session
     const currentExId = e.extra?.exhibitionId || extractExhibitionId(e.url || '');
     if (currentExId && EXHIBITION_METADATA[currentExId]) {
       sessionToLastExhibition[e.sessionId] = currentExId;
@@ -277,16 +373,35 @@ app.get('/api/stats', (req, res) => {
         
         if (!stats.sessionTimes[e.sessionId]) stats.sessionTimes[e.sessionId] = [];
         stats.sessionTimes[e.sessionId].push(e.timestamp);
+
+        // Track daily metrics
+        if (dailyStatsMap[dateStr]) {
+          dailyStatsMap[dateStr].pv++;
+          dailyStatsMap[dateStr].uvSet.add(e.userId);
+        }
       }
     }
 
-    // 2. Trace purchases and attribute revenue using the Last-Touch model
+    // 3. Trace click activities on a per-exhibition basis
+    if (e.type === 'CLICK') {
+      const lastExId = e.extra?.exhibitionId || sessionToLastExhibition[e.sessionId];
+      if (lastExId && exhibitionStats[lastExId]) {
+        exhibitionStats[lastExId].clicks++;
+      }
+    }
+
+    // 4. Trace purchases and attribute revenue using the Last-Touch model
     if (e.type === 'PURCHASE') {
       const lastExId = e.extra?.attributedExhibitionId || sessionToLastExhibition[e.sessionId];
       if (lastExId && exhibitionStats[lastExId]) {
         const rev = parseInt(e.extra?.revenue || 0);
         exhibitionStats[lastExId].attributedRevenue += rev;
         exhibitionStats[lastExId].orderCount++;
+
+        // Track daily revenue
+        if (dailyStatsMap[dateStr]) {
+          dailyStatsMap[dateStr].revenue += rev;
+        }
       }
     }
   });
@@ -314,6 +429,7 @@ app.get('/api/stats', (req, res) => {
       title: ex.title,
       pv: ex.pv,
       uv: ex.uvSet.size,
+      clicks: ex.clicks, // [NEW]
       avgStay: `${avgStay}s`,
       bounceRate: `${Math.min(bounce, 75)}%`,
       revenue: ex.attributedRevenue,
@@ -329,6 +445,9 @@ app.get('/api/stats', (req, res) => {
   
   // Total Revenue generated through exhibitions
   const totalRevenue = exhibitionsPerformanceList.reduce((acc, curr) => acc + curr.revenue, 0);
+
+  // Total Clicks across all exhibitions [NEW]
+  const totalClicks = exhibitionsPerformanceList.reduce((acc, curr) => acc + curr.clicks, 0);
 
   // Exhibition funnel logic
   const funnelSessions = {};
@@ -354,10 +473,19 @@ app.get('/api/stats', (req, res) => {
   
   const getPct = (val) => totalF ? Math.floor((val / totalF) * 100) : 0;
 
+  // Format daily performance list
+  const dailyPerformance = datesList.map(date => ({
+    date,
+    pv: dailyStatsMap[date].pv,
+    uv: dailyStatsMap[date].uvSet.size,
+    revenue: dailyStatsMap[date].revenue
+  }));
+
   res.json({
     stats: {
       totalPV: totalExPV.toLocaleString(),
       uniqueUV: totalExUV.toLocaleString(),
+      totalClicks: totalClicks.toLocaleString(), // [NEW]
       avgDuration: "0m 35s",
       bounceRate: "16%",
       revenue: `₩${totalRevenue.toLocaleString()}`
@@ -370,6 +498,7 @@ app.get('/api/stats', (req, res) => {
       { name: '5. 최종 구매 완료 (결제)', count: purCount, rate: getPct(purCount), color: 'var(--colors-brand-mint)' }
     ],
     pages: exhibitionsPerformanceList, // Replaces default pages directory with active exhibitions performance!
+    dailyPerformance,
     logs: events.slice(-25).reverse()
   });
 });
@@ -383,7 +512,7 @@ app.post('/api/reset', (req, res) => {
 // 4. Simulate Background Shopper actions (Focused entirely on exhibitions!)
 app.post('/api/simulate', (req, res) => {
   const userPool = Array.from({ length: 15 }, (_, i) => `sim_user_lf_${Math.floor(Math.random() * 800)}`);
-  const exPool = ['103291', '992831', '553920', '402391'];
+  const exPool = Object.keys(EXHIBITION_METADATA);
   
   const userId = userPool[Math.floor(Math.random() * userPool.length)];
   const sessionId = 'sim_sess_lf_' + Math.random().toString(36).substr(2, 7);
@@ -412,6 +541,30 @@ app.post('/api/simulate', (req, res) => {
       userId,
       extra: { exhibitionId: exId, exhibitionTitle: EXHIBITION_METADATA[exId] }
     });
+
+    // Simulate clicking inside the exhibition
+    const clickRand = Math.random();
+    if (clickRand < 0.5) {
+      eventsDatabase.push({
+        timestamp: now + 500,
+        type: 'CLICK',
+        pageType: 'CATEGORY',
+        elementId: 'product-item-link',
+        sessionId,
+        userId,
+        extra: { exhibitionId: exId }
+      });
+    } else if (clickRand < 0.8) {
+      eventsDatabase.push({
+        timestamp: now + 800,
+        type: 'CLICK',
+        pageType: 'CATEGORY',
+        elementId: 'download-coupon-btn',
+        sessionId,
+        userId,
+        extra: { exhibitionId: exId }
+      });
+    }
   } else if (rand < 0.9) {
     // Click through product inside the exhibition
     const prodId = `LF-PROD-${10000 + Math.floor(Math.random() * 90000)}`;

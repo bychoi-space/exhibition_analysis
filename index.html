@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Clay Analytics - LF Mall 기획전 성과 분석기</title>
+  <title>LFmall 기획전 성과 분석</title>
+  <link rel="icon" type="image/png" href="./exhibition_analytics_icon.png">
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -60,6 +61,10 @@
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
     );
 
+    const IconCursor = ({ size = 14, color }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z" /><path d="m13 13 6 6" /></svg>
+    );
+
     const IconPlay = ({ size = 14 }) => (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3" /></svg>
     );
@@ -89,7 +94,37 @@
       '103291': '닥스 봄 데일리 스페셜 위크 (DAKKS)',
       '992831': '아떼 바캉스 실크 원피스 컬렉션 (ATHE)',
       '553920': '헤지스 남성 트렌디 린넨 캐주얼 대전 (HAZZYS)',
-      '402391': '명품 해외 패션 럭셔리 시즌 오프 (LUXURY)'
+      '402391': '명품 해외 패션 럭셔리 시즌 오프 (LUXURY)',
+      '101001': '질스튜어트 뉴욕 남성 서머 에센셜 (JILLSTUART)',
+      '101002': '라푸마 캠핑 테크 서머 컬렉션 (LAFUMA)',
+      '101003': '바네사브루노 아일렛 자수 블라우스 단독 기획 (VANESSABRUNO)',
+      '101004': '콜한 초경량 남성 드레스 스니커즈 (COLE HAAN)',
+      '101005': '앳코너 로맨틱 린넨 원피스 컬렉션 (A.T.CORNER)',
+      '101006': '마에스트로 이태리 쿨 서머 비즈니스 룩 (MAESTRO)',
+      '101007': '레오나드 플로럴 실크 가디건 페스티벌 (LEONARD)',
+      '101008': 'TNGT 클래식 남성 리넨 셋업 수트 대전 (TNGT)',
+      '101009': '버켄스탁 독일 직수입 여름 샌들전 (BIRKENSTOCK)',
+      '101010': '이자벨마랑 파리지앵 서머 아우터 팝업 (ISABEL MARANT)',
+      '101011': '닥스 골프 26SS 프리미엄 필드 룩 (DAKS GOLF)',
+      '101012': '헤지스 레이디스 프렌치 리넨 셔츠전 (HAZZYS LADIES)',
+      '101013': '질바이질스튜어트 슈즈 페스티벌 (JILL BY JILLSTUART)',
+      '101014': '블랙야크 키즈 액티브 아웃도어 기획 (BLACK YAK)',
+      '101015': '일꼬르소 실루엣 린넨 니트 단독 특가 (IL CORSO)',
+      '101016': '바네사브루노 아떼 에스닉 프린트 로브 (ATHE VB)',
+      '101017': '헤지스 골프 여름 메쉬 보스턴백 컬렉션 (HAZZYS GOLF)',
+      '101018': '핏플랍 26SS 샌들 & 슬라이드 특가전 (FITFLOP)',
+      '101019': '닥스 액세서리 엠보 가죽 크로스백 (DAKS ACC)',
+      '101020': '바버 헤리티지 여름 퀼팅 자켓 & 자외선 차단 대전 (BARBOUR)',
+      '101021': '헤지스 키즈 캐주얼 피케 셔츠 균일가 (HAZZYS KIDS)',
+      '101022': '닥스 슈즈 컴포트 플랫슈즈 특가 위크 (DAKS SHOES)',
+      '101023': '이자벨마랑 에뚜왈 로맨틱 코튼 드레스 (MARANT ETOP)',
+      '101024': '질스튜어트 스포츠 통기성 쿨링 트레이닝 (JILLSTUART SPORT)',
+      '101025': '라푸마 쿨웨어 기능성 티셔츠 기획 (LAFUMA COOL)',
+      '101026': '바네사브루노 파리 패션쇼 아카이브전 (VANESSABRUNO PARIS)',
+      '101027': '레오나드 26SS 보타닉 원피스 팝업 (LEONARD BOTANIC)',
+      '101028': '콜한 제로그랜드 캐주얼 로퍼 페스티벌 (COLE HAAN ZEROGRAND)',
+      '101029': 'TNGT 미니멀 서머 반팔 니트 특전 (TNGT MINIMAL)',
+      '101030': '핏플랍 컴포트 샌들 시즌오프 특가 (FITFLOP OUTLET)'
     };
 
     const getOrGenerateId = (key, storage) => {
@@ -161,7 +196,44 @@
           extra: { exhibitionId: exId, exhibitionTitle: EXHIBITION_METADATA[exId] }
         });
         
-        timeCursor += 8000 + Math.random() * 35000; // Users browse exhibition page for 8-43s
+        // Seed clicks within the exhibition page
+        const viewDuration = 8000 + Math.random() * 35000;
+        
+        if (Math.random() < 0.6) {
+          events.push({
+            timestamp: timeCursor + (2000 + Math.random() * 3000),
+            type: 'CLICK',
+            pageType: 'CATEGORY',
+            elementId: 'exhibition-main-banner-btn',
+            sessionId,
+            userId,
+            extra: { exhibitionId: exId }
+          });
+        }
+        if (Math.random() < 0.4) {
+          events.push({
+            timestamp: timeCursor + (5000 + Math.random() * 4000),
+            type: 'CLICK',
+            pageType: 'CATEGORY',
+            elementId: 'download-coupon-btn',
+            sessionId,
+            userId,
+            extra: { exhibitionId: exId }
+          });
+        }
+        if (Math.random() < 0.75) {
+          events.push({
+            timestamp: timeCursor + viewDuration - 1000,
+            type: 'CLICK',
+            pageType: 'CATEGORY',
+            elementId: 'product-item-link',
+            sessionId,
+            userId,
+            extra: { exhibitionId: exId }
+          });
+        }
+
+        timeCursor += viewDuration; // Users browse exhibition page for 8-43s
         
         // 3. Clicks on products inside the exhibition page (70% chance)
         if (Math.random() < 0.7) {
@@ -288,6 +360,27 @@
         }
       }
       
+      // --- DAILY PERFORMANCE CALCULATION ---
+      const dailyStatsMap = {};
+      const datesList = [];
+      
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        let current = new Date(start.getTime());
+        let limit = 60; // Safety cap
+        while (current <= end && limit > 0) {
+          const y = current.getFullYear();
+          const m = String(current.getMonth() + 1).padStart(2, '0');
+          const d = String(current.getDate()).padStart(2, '0');
+          const dateStr = `${y}-${m}-${d}`;
+          datesList.push(dateStr);
+          dailyStatsMap[dateStr] = { date: dateStr, pv: 0, uvSet: new Set(), revenue: 0 };
+          current.setDate(current.getDate() + 1);
+          limit--;
+        }
+      }
+
       const sessionToLastExhibition = {};
       const exhibitionStats = {};
 
@@ -300,12 +393,20 @@
           uvSet: new Set(),
           sessionTimes: {},
           attributedRevenue: 0,
-          orderCount: 0
+          orderCount: 0,
+          clicks: 0 // [NEW]
         };
       });
 
       // Walk through logs chronologically
       events.forEach(e => {
+        // 1. Trace event date for daily performance calculation
+        const dateObj = new Date(e.timestamp);
+        const y = dateObj.getFullYear();
+        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const d = String(dateObj.getDate()).padStart(2, '0');
+        const dateStr = `${y}-${m}-${d}`;
+
         const currentExId = e.extra?.exhibitionId || extractExhibitionId(e.url || '');
         if (currentExId && EXHIBITION_METADATA[currentExId]) {
           sessionToLastExhibition[e.sessionId] = currentExId;
@@ -317,6 +418,20 @@
             
             if (!stats.sessionTimes[e.sessionId]) stats.sessionTimes[e.sessionId] = [];
             stats.sessionTimes[e.sessionId].push(e.timestamp);
+
+            // Track daily metrics
+            if (dailyStatsMap[dateStr]) {
+              dailyStatsMap[dateStr].pv++;
+              dailyStatsMap[dateStr].uvSet.add(e.userId);
+            }
+          }
+        }
+
+        // 2. Trace click activities on a per-exhibition basis
+        if (e.type === 'CLICK') {
+          const lastExId = e.extra?.exhibitionId || sessionToLastExhibition[e.sessionId];
+          if (lastExId && exhibitionStats[lastExId]) {
+            exhibitionStats[lastExId].clicks++;
           }
         }
 
@@ -326,6 +441,11 @@
             const rev = parseInt(e.extra?.revenue || 0);
             exhibitionStats[lastExId].attributedRevenue += rev;
             exhibitionStats[lastExId].orderCount++;
+
+            // Track daily revenue
+            if (dailyStatsMap[dateStr]) {
+              dailyStatsMap[dateStr].revenue += rev;
+            }
           }
         }
       });
@@ -352,6 +472,7 @@
           title: ex.title,
           pv: ex.pv,
           uv: ex.uvSet.size,
+          clicks: ex.clicks, // [NEW]
           avgStay: `${avgStay}s`,
           bounceRate: `${Math.min(bounce, 75)}%`,
           revenue: ex.attributedRevenue,
@@ -364,6 +485,7 @@
       const totalExPV = exPageViews.length;
       const totalExUV = new Set(exPageViews.map(e => e.userId)).size;
       const totalRevenue = exhibitionsPerformanceList.reduce((acc, curr) => acc + curr.revenue, 0);
+      const totalClicks = exhibitionsPerformanceList.reduce((acc, curr) => acc + curr.clicks, 0); // [NEW]
 
       // Funnel
       const funnelSessions = {};
@@ -389,10 +511,19 @@
       
       const getPct = (val) => totalF ? Math.floor((val / totalF) * 100) : 0;
 
+      // Format daily performance list
+      const dailyPerformance = datesList.map(date => ({
+        date,
+        pv: dailyStatsMap[date].pv,
+        uv: dailyStatsMap[date].uvSet.size,
+        revenue: dailyStatsMap[date].revenue
+      }));
+
       return {
         stats: {
           totalPV: totalExPV.toLocaleString(),
           uniqueUV: totalExUV.toLocaleString(),
+          totalClicks: totalClicks.toLocaleString(), // [NEW]
           avgDuration: "0m 35s",
           bounceRate: "16%",
           revenue: `₩${totalRevenue.toLocaleString()}`
@@ -405,6 +536,7 @@
           { name: '5. 최종 구매 완료 (결제)', count: purCount, rate: getPct(purCount), color: 'var(--colors-brand-mint)' }
         ],
         pages: exhibitionsPerformanceList,
+        dailyPerformance,
         logs: events.slice(-35).reverse()
       };
     };
@@ -412,7 +544,7 @@
     // Client-side simulation traffic (Focused entirely on exhibitions!)
     const simulateUserTraffic = () => {
       const userPool = Array.from({ length: 15 }, (_, i) => `sim_user_lf_${Math.floor(Math.random() * 800)}`);
-      const exPool = ['103291', '992831', '553920', '402391'];
+      const exPool = Object.keys(EXHIBITION_METADATA);
       
       const userId = userPool[Math.floor(Math.random() * userPool.length)];
       const sessionId = 'sim_sess_lf_' + Math.random().toString(36).substr(2, 7);
@@ -439,6 +571,30 @@
           userId,
           extra: { exhibitionId: exId, exhibitionTitle: EXHIBITION_METADATA[exId] }
         });
+
+        // Simulate clicking inside the exhibition
+        const clickRand = Math.random();
+        if (clickRand < 0.5) {
+          events.push({
+            timestamp: now + 500,
+            type: 'CLICK',
+            pageType: 'CATEGORY',
+            elementId: 'product-item-link',
+            sessionId,
+            userId,
+            extra: { exhibitionId: exId }
+          });
+        } else if (clickRand < 0.8) {
+          events.push({
+            timestamp: now + 800,
+            type: 'CLICK',
+            pageType: 'CATEGORY',
+            elementId: 'download-coupon-btn',
+            sessionId,
+            userId,
+            extra: { exhibitionId: exId }
+          });
+        }
       } else if (rand < 0.9) {
         const prodId = `LF-PROD-${10000 + Math.floor(Math.random() * 90000)}`;
         const price = 80000 + Math.floor(Math.random() * 350000);
@@ -474,13 +630,22 @@
       const [startDate, setStartDate] = useState(getFormattedDate(7));
       const [endDate, setEndDate] = useState(getFormattedDate(0));
 
-      const [stats, setStats] = useState({ totalPV: "0", uniqueUV: "0", avgDuration: "0s", bounceRate: "0%", revenue: "₩0" });
+      const [stats, setStats] = useState({ totalPV: "0", uniqueUV: "0", totalClicks: "0", avgDuration: "0s", bounceRate: "0%", revenue: "₩0" });
       const [funnel, setFunnel] = useState([]);
       const [pages, setPages] = useState([]);
+      const [dailyPerformance, setDailyPerformance] = useState([]);
       const [logs, setLogs] = useState([]);
       
       const [isSimulating, setIsSimulating] = useState(false);
       const [simCount, setSimCount] = useState(0);
+
+      // Lazy Loading State for Campaign Performance Grid [NEW]
+      const [visibleCount, setVisibleCount] = useState(20);
+      const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+      useEffect(() => {
+        setVisibleCount(20);
+      }, [startDate, endDate]);
 
       const isLiveServer = window.location.protocol.startsWith('http') && !window.location.hostname.endsWith('github.io');
 
@@ -492,6 +657,7 @@
             setStats(data.stats);
             setFunnel(data.funnel);
             setPages(data.pages);
+            setDailyPerformance(data.dailyPerformance || []);
             setLogs(data.logs);
           } catch (e) {
             console.error("Failed to fetch live stats from server.", e);
@@ -501,6 +667,7 @@
           setStats(data.stats);
           setFunnel(data.funnel);
           setPages(data.pages);
+          setDailyPerformance(data.dailyPerformance || []);
           setLogs(data.logs);
         }
       };
@@ -516,6 +683,7 @@
             setStats(data.stats);
             setFunnel(data.funnel);
             setPages(data.pages);
+            setDailyPerformance(data.dailyPerformance || []);
             setLogs(data.logs);
           };
           window.addEventListener('clay_analytics_update', handleUpdate);
@@ -596,16 +764,133 @@
 
       const getPageTypeClass = (type) => `page-type-pill ${type.toLowerCase()}`;
 
+      // Daily chart calculations
+      const [selectedMetric, setSelectedMetric] = useState('pv'); // 'pv', 'uv', 'revenue'
+      const [hoveredIndex, setHoveredIndex] = useState(null);
+
+      const paddingLeft = 50;
+      const paddingRight = 30;
+      const paddingTop = 20;
+      const paddingBottom = 30;
+      const chartWidth = 620 - paddingLeft - paddingRight;
+      const chartHeight = 220 - paddingTop - paddingBottom;
+
+      const { points, maxVal, gridLines, linePath, areaPath } = useMemo(() => {
+        if (!dailyPerformance || dailyPerformance.length === 0) {
+          return { points: [], maxVal: 1, gridLines: [], linePath: '', areaPath: '' };
+        }
+
+        const values = dailyPerformance.map(d => d[selectedMetric] || 0);
+        let maxValue = Math.max(...values, 0);
+        let maxVal = maxValue > 0 ? maxValue : 10;
+        
+        // Add 15% headroom
+        maxVal = Math.ceil(maxVal * 1.15);
+
+        // Grid lines (4 divisions)
+        const gridLines = [0, Math.floor(maxVal * 0.33), Math.floor(maxVal * 0.66), maxVal];
+
+        const N = dailyPerformance.length;
+        const points = dailyPerformance.map((item, idx) => {
+          const x = paddingLeft + (idx / Math.max(N - 1, 1)) * chartWidth;
+          const y = (220 - paddingBottom) - (item[selectedMetric] / maxVal) * chartHeight;
+          return { x, y };
+        });
+
+        const linePath = points.length > 0 
+          ? `M ${points[0].x} ${points[0].y} L ${points.map(p => `${p.x} ${p.y}`).join(' L ')}` 
+          : '';
+          
+        const areaPath = points.length > 0
+          ? `M ${points[0].x} ${220 - paddingBottom} L ${points.map(p => `${p.x} ${p.y}`).join(' L ')} L ${points[points.length - 1].x} ${220 - paddingBottom} Z`
+          : '';
+
+        return { points, maxVal, gridLines, linePath, areaPath };
+      }, [dailyPerformance, selectedMetric, chartWidth, chartHeight]);
+
+      const formatDateLabel = (dateStr) => {
+        if (!dateStr) return '';
+        const parts = dateStr.split('-');
+        if (parts.length !== 3) return dateStr;
+        return `${parseInt(parts[1])}/${parseInt(parts[2])}`;
+      };
+
+      const shouldShowLabel = (idx, total) => {
+        if (total <= 8) return true;
+        if (total <= 15) return idx % 2 === 0;
+        if (total <= 30) return idx % 4 === 0;
+        return idx % 6 === 0;
+      };
+
+      const formatAxisValue = (val, metric) => {
+        if (metric === 'revenue') {
+          if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
+          if (val >= 1000) return `${(val / 1000).toFixed(0)}K`;
+          return val.toString();
+        }
+        if (val >= 1000) return `${(val / 1000).toFixed(1)}K`;
+        return val.toString();
+      };
+
+      // View Mode Toggle (Cumulative vs Daily Average) [NEW]
+      const [viewMode, setViewMode] = useState('cumulative'); // 'cumulative', 'average'
+
+      const daysCount = useMemo(() => {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        return diffDays > 0 ? diffDays : 1;
+      }, [startDate, endDate]);
+
+      const displayStats = useMemo(() => {
+        if (viewMode === 'cumulative') return stats;
+        const rawPV = parseInt(stats.totalPV.replace(/,/g, '')) || 0;
+        const rawUV = parseInt(stats.uniqueUV.replace(/,/g, '')) || 0;
+        const rawClicks = parseInt(stats.totalClicks.replace(/,/g, '')) || 0;
+        const rawRev = parseInt(stats.revenue.replace(/[^0-9]/g, '')) || 0;
+        
+        return {
+          ...stats,
+          totalPV: Math.round(rawPV / daysCount).toLocaleString(),
+          uniqueUV: Math.round(rawUV / daysCount).toLocaleString(),
+          totalClicks: Math.round(rawClicks / daysCount).toLocaleString(),
+          revenue: `₩${Math.round(rawRev / daysCount).toLocaleString()}`
+        };
+      }, [stats, viewMode, daysCount]);
+
+      const displayFunnel = useMemo(() => {
+        if (viewMode === 'cumulative') return funnel;
+        return funnel.map(step => ({
+          ...step,
+          count: Math.round(step.count / daysCount)
+        }));
+      }, [funnel, viewMode, daysCount]);
+
+      const displayPages = useMemo(() => {
+        if (viewMode === 'cumulative') return pages;
+        return pages.map(p => ({
+          ...p,
+          pv: Math.round(p.pv / daysCount),
+          uv: Math.round(p.uv / daysCount),
+          clicks: Math.round(p.clicks / daysCount),
+          revenue: Math.round(p.revenue / daysCount)
+        }));
+      }, [pages, viewMode, daysCount]);
+
       return (
-        <div className="dashboard-pane" style={{ maxWidth: '1280px', padding: 'var(--spacing-xl) var(--spacing-lg)' }}>
+        <div className="dashboard-pane" style={{ maxWidth: '1500px', padding: 'var(--spacing-xl) var(--spacing-lg)' }}>
           
           {/* Dashboard Title Header */}
           <div className="dashboard-header-group">
-            <div>
-              <span className="caption-uppercase" style={{color: 'var(--colors-muted)', display: 'flex', alignItems: 'center', gap: '6px'}}>
-                <IconBarChart /> REAL-TIME GROWTH TELEMETRY
-              </span>
-              <h2 className="display-sm" style={{marginTop: '4px', fontWeight: 500}}>LF Mall 실시간 기획전 성과 분석기</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <img src="./exhibition_analytics_icon.png" alt="LFmall 기획전 성과 분석" style={{ width: '48px', height: '48px', borderRadius: 'var(--rounded-md)', border: '1px solid var(--colors-hairline)', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)' }} />
+              <div>
+                <span className="caption-uppercase" style={{color: 'var(--colors-muted)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.05em'}}>
+                  REAL-TIME GROWTH TELEMETRY
+                </span>
+                <h2 className="display-sm" style={{marginTop: '2px', fontWeight: 600, color: 'var(--colors-ink)', fontSize: '24px', letterSpacing: '-0.02em'}}>LFmall 기획전 성과 분석</h2>
+              </div>
             </div>
             <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
               {isSimulating && (
@@ -617,7 +902,7 @@
               <button className="btn btn-secondary btn-sm" onClick={refresh}><IconRefresh /> 수동 새로고침</button>
             </div>
           </div>
-
+ 
           {/* Date Range Selector Panel (Clay.com styled) */}
           <div className="simulation-drawer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--colors-surface-soft)', padding: '12px 20px', borderRadius: 'var(--rounded-lg)', marginBottom: 'var(--spacing-md)', border: '1px solid var(--colors-hairline)', marginTop: '8px' }}>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -689,24 +974,312 @@
             </div>
           </div>
 
+          {/* Interactive Daily Performance Trend SVG Chart (Clay.com Aesthetic) */}
+          <div className="chart-card daily-trend-chart-card" style={{ marginBottom: 'var(--spacing-md)' }}>
+            <div className="trend-chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 className="title-md" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>📈</span> 기획전 일별 통합 성과 추이 (Daily Performance Trend)
+                </h3>
+                <p className="body-sm" style={{ color: 'var(--colors-muted)', marginTop: '2px' }}>조회 기간 동안의 일자별 성과 변화 추세 및 비즈니스 트렌드를 모니터링합니다.</p>
+              </div>
+              
+              {/* Metric Selection Tabs */}
+              <div className="metric-tabs" style={{ display: 'flex', gap: '4px', backgroundColor: 'var(--colors-surface-strong)', padding: '3px', borderRadius: 'var(--rounded-pill)' }}>
+                {[
+                  { id: 'pv', label: '페이지뷰 (PV)', color: 'var(--colors-brand-pink)' },
+                  { id: 'uv', label: '순 방문자 (UV)', color: 'var(--colors-brand-teal)' },
+                  { id: 'revenue', label: '기여 매출액 (Revenue)', color: 'var(--colors-brand-ochre)' }
+                ].map(tab => {
+                  const isActive = selectedMetric === tab.id;
+                  const dotColor = tab.id === 'pv' ? 'var(--colors-brand-pink)' : tab.id === 'uv' ? 'var(--colors-brand-teal)' : 'var(--colors-brand-ochre)';
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setSelectedMetric(tab.id)}
+                      style={{
+                        border: 'none',
+                        background: isActive ? 'var(--colors-canvas)' : 'none',
+                        color: isActive ? 'var(--colors-ink)' : 'var(--colors-muted)',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        padding: '6px 14px',
+                        borderRadius: 'var(--rounded-pill)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: dotColor }}></span>
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <div className="trend-chart-body" style={{ marginTop: 'var(--spacing-md)', position: 'relative', height: '220px' }}>
+              {dailyPerformance.length === 0 ? (
+                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--colors-muted-soft)', fontSize: '13px' }}>
+                  선택된 기간에 분석 데이터가 존재하지 않습니다.
+                </div>
+              ) : (
+                <svg viewBox="0 0 620 220" width="100%" height="100%" style={{ overflow: 'visible' }}>
+                  {/* Gradients */}
+                  <defs>
+                    <linearGradient id="grad-pv" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--colors-brand-pink)" stopOpacity="0.35"/>
+                      <stop offset="100%" stopColor="var(--colors-brand-pink)" stopOpacity="0.0"/>
+                    </linearGradient>
+                    <linearGradient id="grad-uv" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--colors-brand-teal)" stopOpacity="0.35"/>
+                      <stop offset="100%" stopColor="var(--colors-brand-teal)" stopOpacity="0.0"/>
+                    </linearGradient>
+                    <linearGradient id="grad-revenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--colors-brand-ochre)" stopOpacity="0.35"/>
+                      <stop offset="100%" stopColor="var(--colors-brand-ochre)" stopOpacity="0.0"/>
+                    </linearGradient>
+                  </defs>
+
+                  {/* Grid lines and Left Axis Labels */}
+                  {gridLines.map((yVal, i) => {
+                    const yCoord = (220 - paddingBottom) - (yVal / maxVal) * chartHeight;
+                    return (
+                      <g key={i}>
+                        <line 
+                          x1={paddingLeft} 
+                          y1={yCoord} 
+                          x2={620 - paddingRight} 
+                          y2={yCoord} 
+                          stroke="var(--colors-hairline)" 
+                          strokeWidth="1"
+                        />
+                        <text 
+                          x={paddingLeft - 10} 
+                          y={yCoord + 4} 
+                          fill="var(--colors-muted)" 
+                          fontSize="10" 
+                          textAnchor="end"
+                          fontFamily="monospace"
+                        >
+                          {formatAxisValue(yVal, selectedMetric)}
+                        </text>
+                      </g>
+                    );
+                  })}
+
+                  {/* Area fill */}
+                  <path 
+                    d={areaPath} 
+                    fill={`url(#grad-${selectedMetric})`}
+                    style={{ transition: 'd 0.3s ease-out' }}
+                  />
+
+                  {/* Line path */}
+                  <path 
+                    d={linePath} 
+                    fill="none" 
+                    stroke={selectedMetric === 'pv' ? 'var(--colors-brand-pink)' : selectedMetric === 'uv' ? 'var(--colors-brand-teal)' : 'var(--colors-brand-ochre)'} 
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ transition: 'd 0.3s ease-out' }}
+                  />
+
+                  {/* X Axis Line */}
+                  <line 
+                    x1={paddingLeft} 
+                    y1={220 - paddingBottom} 
+                    x2={620 - paddingRight} 
+                    y2={220 - paddingBottom} 
+                    stroke="var(--colors-muted-soft)" 
+                    strokeWidth="1"
+                  />
+
+                  {/* X Axis Labels */}
+                  {points.map((p, i) => {
+                    if (!shouldShowLabel(i, points.length)) return null;
+                    return (
+                      <text 
+                        key={i}
+                        x={p.x} 
+                        y={220 - paddingBottom + 16} 
+                        fill="var(--colors-muted)" 
+                        fontSize="10" 
+                        textAnchor="middle"
+                        fontFamily="monospace"
+                      >
+                        {formatDateLabel(dailyPerformance[i].date)}
+                      </text>
+                    );
+                  })}
+
+                  {/* Interactive hover column rects */}
+                  {points.map((p, i) => {
+                    const colWidth = chartWidth / Math.max(points.length, 1);
+                    return (
+                      <rect
+                        key={i}
+                        x={p.x - colWidth / 2}
+                        y={paddingTop}
+                        width={colWidth}
+                        height={chartHeight}
+                        fill="transparent"
+                        style={{ cursor: 'pointer' }}
+                        onMouseEnter={() => setHoveredIndex(i)}
+                        onMouseLeave={() => setHoveredIndex(null)}
+                      />
+                    );
+                  })}
+
+                  {/* Hover vertical guideline */}
+                  {hoveredIndex !== null && points[hoveredIndex] && (
+                    <line 
+                      x1={points[hoveredIndex].x} 
+                      y1={paddingTop} 
+                      x2={points[hoveredIndex].x} 
+                      y2={220 - paddingBottom} 
+                      stroke="var(--colors-muted-soft)" 
+                      strokeDasharray="3 3" 
+                      strokeWidth="1.5" 
+                    />
+                  )}
+
+                  {/* Highlight circle on line */}
+                  {points.map((p, i) => {
+                    const isHovered = hoveredIndex === i;
+                    const metricColor = selectedMetric === 'pv' ? 'var(--colors-brand-pink)' : selectedMetric === 'uv' ? 'var(--colors-brand-teal)' : 'var(--colors-brand-ochre)';
+                    return (
+                      <circle 
+                        key={i}
+                        cx={p.x}
+                        cy={p.y}
+                        r={isHovered ? 6 : 3.5}
+                        fill="var(--colors-canvas)"
+                        stroke={metricColor}
+                        strokeWidth={isHovered ? 3 : 2}
+                        style={{ transition: 'r 0.15s ease-out, stroke-width 0.15s ease-out' }}
+                        pointerEvents="none"
+                      />
+                    );
+                  })}
+
+                  {/* Dynamic Tooltip inside SVG */}
+                  {hoveredIndex !== null && dailyPerformance[hoveredIndex] && points[hoveredIndex] && (
+                    <g style={{ pointerEvents: 'none' }}>
+                      <rect 
+                        x={points[hoveredIndex].x - 65} 
+                        y={Math.max(points[hoveredIndex].y - 52, 5)} 
+                        width="130" 
+                        height="40" 
+                        rx="6" 
+                        fill="var(--colors-surface-dark)" 
+                        opacity="0.95" 
+                      />
+                      <text 
+                        x={points[hoveredIndex].x} 
+                        y={Math.max(points[hoveredIndex].y - 38, 19)} 
+                        fill="var(--colors-on-dark)" 
+                        fontSize="9" 
+                        fontWeight="600" 
+                        textAnchor="middle"
+                      >
+                        {dailyPerformance[hoveredIndex].date}
+                      </text>
+                      <text 
+                        x={points[hoveredIndex].x} 
+                        y={Math.max(points[hoveredIndex].y - 22, 35)} 
+                        fill={selectedMetric === 'pv' ? 'var(--colors-brand-pink)' : selectedMetric === 'uv' ? 'var(--colors-brand-mint)' : 'var(--colors-brand-ochre)'} 
+                        fontSize="11" 
+                        fontWeight="700" 
+                        textAnchor="middle"
+                      >
+                        {selectedMetric === 'revenue' 
+                          ? `₩${dailyPerformance[hoveredIndex].revenue.toLocaleString()}` 
+                          : `${dailyPerformance[hoveredIndex][selectedMetric].toLocaleString()} ${selectedMetric === 'pv' ? 'PV' : '명'}`
+                        }
+                      </text>
+                    </g>
+                  )}
+                </svg>
+              )}
+            </div>
+          </div>
+
+          {/* Cumulative vs Daily Average Toggle Selector [NEW] */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--spacing-md)' }}>
+            <div className="view-mode-toggle" style={{ display: 'flex', backgroundColor: 'var(--colors-surface-strong)', padding: '3px', borderRadius: 'var(--rounded-pill)', border: '1px solid var(--colors-hairline)', position: 'relative', zIndex: 10 }}>
+              {[
+                { id: 'cumulative', label: '📊 누적 데이터 (Cumulative)' },
+                { id: 'average', label: '⏱️ 일 평균 데이터 (Daily Avg)' }
+              ].map(mode => {
+                const isActive = viewMode === mode.id;
+                return (
+                  <button
+                    key={mode.id}
+                    className={`btn btn-sm ${isActive ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setViewMode(mode.id)}
+                    style={{
+                      height: '28px',
+                      fontSize: '12px',
+                      padding: '4px 14px',
+                      backgroundColor: isActive ? 'var(--colors-brand-teal)' : 'var(--colors-canvas)',
+                      color: isActive ? '#ffffff' : 'var(--colors-ink)',
+                      borderRadius: 'var(--rounded-pill)',
+                      border: isActive ? 'none' : '1px solid var(--colors-hairline)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      fontWeight: 600
+                    }}
+                  >
+                    {mode.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Top Scorecard Metrics */}
           <div className="dashboard-stats-grid">
             <div className="stat-card colored-pink">
               <div className="stat-header">
-                <span className="caption-uppercase">기획전 누적 페이지 뷰 (PV)</span>
+                <span className="caption-uppercase">
+                  {viewMode === 'average' ? '기획전 일 평균 페이지 뷰 (PV)' : '기획전 누적 페이지 뷰 (PV)'}
+                </span>
                 <IconEye color="var(--colors-brand-pink)" />
               </div>
-              <span className="stat-value">{stats.totalPV}</span>
-              <span className="caption" style={{color: 'var(--colors-muted)'}}>Total Web Hits</span>
+              <span className="stat-value">{displayStats.totalPV}</span>
+              <span className="caption" style={{color: 'var(--colors-muted)'}}>
+                {viewMode === 'average' ? 'Daily Avg Hits' : 'Total Web Hits'}
+              </span>
             </div>
 
             <div className="stat-card colored-teal">
               <div className="stat-header">
-                <span className="caption-uppercase">기획전 순 방문자 수 (UV)</span>
+                <span className="caption-uppercase">
+                  {viewMode === 'average' ? '기획전 일 평균 방문자 (UV)' : '기획전 순 방문자 수 (UV)'}
+                </span>
                 <IconUsers color="var(--colors-brand-teal)" />
               </div>
-              <span className="stat-value">{stats.uniqueUV}</span>
-              <span className="caption" style={{color: 'var(--colors-muted)'}}>Unique Session UUIDs</span>
+              <span className="stat-value">{displayStats.uniqueUV}</span>
+              <span className="caption" style={{color: 'var(--colors-muted)'}}>
+                {viewMode === 'average' ? 'Daily Avg Users' : 'Unique Session UUIDs'}
+              </span>
+            </div>
+
+            <div className="stat-card colored-mint">
+              <div className="stat-header">
+                <span className="caption-uppercase">
+                  {viewMode === 'average' ? '기획전 일 평균 클릭 활동량' : '기획전 내 클릭 활동량 (Clicks)'}
+                </span>
+                <IconCursor color="var(--colors-brand-mint)" />
+              </div>
+              <span className="stat-value">{displayStats.totalClicks}</span>
+              <span className="caption" style={{color: 'var(--colors-muted)'}}>
+                {viewMode === 'average' ? 'Daily Avg Clicks' : 'Attributed Interactions'}
+              </span>
             </div>
 
             <div className="stat-card colored-lavender">
@@ -714,7 +1287,7 @@
                 <span className="caption-uppercase">기획전 평균 체류시간</span>
                 <IconClock color="var(--colors-brand-lavender)" />
               </div>
-              <span className="stat-value">{stats.avgDuration}</span>
+              <span className="stat-value">{displayStats.avgDuration}</span>
               <span className="caption" style={{color: 'var(--colors-muted)'}}>Session Heartbeat Avg</span>
             </div>
 
@@ -723,155 +1296,199 @@
                 <span className="caption-uppercase">기획전 이탈률 (Bounce Rate)</span>
                 <IconTrendingUp color="var(--colors-brand-peach)" />
               </div>
-              <span className="stat-value">{stats.bounceRate}</span>
+              <span className="stat-value">{displayStats.bounceRate}</span>
               <span className="caption" style={{color: 'var(--colors-muted)'}}>Single Page Sessions</span>
             </div>
 
             <div className="stat-card colored-ochre">
               <div className="stat-header">
-                <span className="caption-uppercase">기획전 기여 매출액 (Last-Touch)</span>
+                <span className="caption-uppercase">
+                  {viewMode === 'average' ? '기획전 일 평균 기여 매출액' : '기획전 기여 매출액 (Last-Touch)'}
+                </span>
                 <IconSparkles color="var(--colors-brand-ochre)" />
               </div>
-              <span className="stat-value" style={{ fontSize: '26px', lineHeight: '38px' }}>{stats.revenue}</span>
-              <span className="caption" style={{color: 'var(--colors-muted)'}}>Conversion Sales Revenue</span>
+              <span className="stat-value" style={{ fontSize: '26px', lineHeight: '38px' }}>{displayStats.revenue}</span>
+              <span className="caption" style={{color: 'var(--colors-muted)'}}>
+                {viewMode === 'average' ? 'Daily Avg Sales Revenue' : 'Conversion Sales Revenue'}
+              </span>
             </div>
           </div>
 
-          {/* Dynamic SVG Funnel and Raw Activity stream */}
-          <div className="dashboard-charts-grid">
-            
-            {/* SVF Funnel */}
-            <div className="chart-card">
-              <div>
-                <h3 className="title-md">LF Mall 퍼널 전환율 분석 (Conversion Funnel)</h3>
-                <p className="body-sm" style={{color: 'var(--colors-muted)'}}>고객 여정의 메인 홈 진입부터 최종 주문 결제 완료까지의 퍼널 전환율을 시각화합니다.</p>
-              </div>
-              <div className="svg-funnel-container">
-                <svg viewBox="0 0 500 220" width="100%" height="100%">
-                  {funnel.map((step, idx) => {
-                    const maxBarWidth = 310;
-                    const barWidth = Math.max((step.rate / 100) * maxBarWidth, 20);
-                    const barHeight = 24;
-                    const xStart = 150;
-                    const yStart = idx * 42 + 10;
-                    const barColor = step.color;
-                    return (
-                      <g key={step.name}>
-                        <text x="10" y={yStart + 16} fill="var(--colors-ink)" fontSize="11" fontWeight="600">
-                          {step.name}
-                        </text>
-                        <rect x={xStart} y={yStart} width={maxBarWidth} height={barHeight} fill="var(--colors-surface-soft)" rx="6" />
-                        <rect x={xStart} y={yStart} width={barWidth} height={barHeight} fill={barColor} rx="6" style={{ transition: 'width 0.5s ease-out' }} />
-                        <text x={xStart + Math.max(barWidth - 40, 10)} y={yStart + 16} fill={idx === 1 || idx === 4 ? '#ffffff' : 'var(--colors-ink)'} fontSize="11" fontWeight="700">
-                          {step.rate}%
-                        </text>
-                        <text x={xStart + maxBarWidth + 10} y={yStart + 16} fill="var(--colors-muted)" fontSize="12" fontWeight="500">
-                          {step.count.toLocaleString()} 명
-                        </text>
-                      </g>
-                    );
-                  })}
-                </svg>
-              </div>
+          {/* LF Mall 퍼널 전환율 분석 (Conversion Funnel) */}
+          <div className="chart-card" style={{ marginBottom: 'var(--spacing-md)' }}>
+            <div>
+              <h3 className="title-md">
+                {viewMode === 'average' ? 'LF Mall 일 평균 퍼널 전환율 분석' : 'LF Mall 퍼널 전환율 분석 (Conversion Funnel)'}
+              </h3>
+              <p className="body-sm" style={{color: 'var(--colors-muted)'}}>
+                {viewMode === 'average' ? '고객 여정별 각 단계의 일 평균 인입 인원을 시각화합니다.' : '고객 여정의 메인 홈 진입부터 최종 주문 결제 완료까지의 퍼널 전환율을 시각화합니다.'}
+              </p>
             </div>
-
-            {/* Real-time Activity stream */}
-            <div className="chart-card">
-              <div className="flex-row-between">
-                <div>
-                  <h3 className="title-md" style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                    <IconZap color="var(--colors-brand-pink)" /> 실시간 데이터 분석 스트림
-                  </h3>
-                  <p className="body-sm" style={{color: 'var(--colors-muted)'}}>LF Mall 몰 내에서 실시간으로 갱신되는 유저 트래킹 패킷 로그입니다.</p>
-                </div>
-                <span className="caption-uppercase" style={{backgroundColor: '#e6f4ea', color: 'var(--colors-brand-mint)', padding: '2px 8px', borderRadius: '4px', fontSize: '11px'}}>
-                  Streaming
-                </span>
-              </div>
-              <div className="realtime-log-panel">
-                {logs.slice(0, 12).map((log, index) => {
-                  const isExPageView = log.type === 'PAGE_VIEW' && (extractExhibitionId(log.url) || log.extra?.exhibitionId);
+            <div className="svg-funnel-container" style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+              <svg viewBox="0 0 500 220" width="100%" height="100%">
+                {displayFunnel.map((step, idx) => {
+                  const maxBarWidth = 310;
+                  const barWidth = Math.max((step.rate / 100) * maxBarWidth, 20);
+                  const barHeight = 24;
+                  const xStart = 150;
+                  const yStart = idx * 42 + 10;
+                  const barColor = step.color;
                   return (
-                    <div key={index} className="log-entry-row">
-                      <span className="log-time">{formatTime(log.timestamp)}</span>
-                      <span className="log-desc">
-                        {isExPageView && (
-                          <span>기획전 방문 <strong style={{color: 'var(--colors-brand-pink)'}}>{log.extra?.exhibitionTitle || EXHIBITION_METADATA[log.extra?.exhibitionId || extractExhibitionId(log.url)] || '기획전'}</strong> <code style={{backgroundColor: 'var(--colors-surface-strong)', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontFamily: 'monospace'}}>{log.url}</code></span>
-                        )}
-                        {!isExPageView && log.type === 'PAGE_VIEW' && (
-                          <span>페이지 방문 <code style={{backgroundColor: 'var(--colors-surface-strong)', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontFamily: 'monospace'}}>{log.url}</code></span>
-                        )}
-                        {log.type === 'CLICK' && <span>액션 클릭 <strong>{log.elementId}</strong></span>}
-                        {log.type === 'ADD_TO_CART' && (
-                          <span>장바구니 담기 (기획전 기여: <strong style={{color: 'var(--colors-brand-teal)'}}>{EXHIBITION_METADATA[log.extra?.lastExhibitionId] || '기획전'}</strong>) - <strong>{log.extra?.productId}</strong> (₩{log.extra?.price?.toLocaleString()})</span>
-                        )}
-                        {log.type === 'PURCHASE' && (
-                          <span style={{color: '#0d5a4e', fontWeight: 600}}>주문 결제완료 (기획전 기여: <strong style={{color: 'var(--colors-brand-teal)'}}>{EXHIBITION_METADATA[log.extra?.attributedExhibitionId] || '기획전'}</strong>) - {log.extra?.orderId} <strong style={{fontSize: '13px', color: 'var(--colors-brand-pink)'}}>₩{log.extra?.revenue?.toLocaleString()}</strong> 완료 🎉</span>
-                        )}
-                      </span>
-                      <span className={`${getPageTypeClass(log.pageType)}`} style={{fontSize: '10px', textTransform: 'uppercase'}}>
-                        {log.pageType}
-                      </span>
-                    </div>
+                    <g key={step.name}>
+                      <text x="10" y={yStart + 16} fill="var(--colors-ink)" fontSize="11" fontWeight="600">
+                        {step.name}
+                      </text>
+                      <rect x={xStart} y={yStart} width={maxBarWidth} height={barHeight} fill="var(--colors-surface-soft)" rx="6" />
+                      <rect x={xStart} y={yStart} width={barWidth} height={barHeight} fill={barColor} rx="6" style={{ transition: 'width 0.5s ease-out' }} />
+                      <text x={xStart + Math.max(barWidth - 40, 10)} y={yStart + 16} fill={idx === 1 || idx === 4 ? '#ffffff' : 'var(--colors-ink)'} fontSize="11" fontWeight="700">
+                        {step.rate}%
+                      </text>
+                      <text x={xStart + maxBarWidth + 10} y={yStart + 16} fill="var(--colors-muted)" fontSize="12" fontWeight="500">
+                        {step.count.toLocaleString()} 명{viewMode === 'average' ? ' / 일' : ''}
+                      </text>
+                    </g>
                   );
                 })}
-              </div>
+              </svg>
             </div>
           </div>
 
-          {/* Directory of Page performances */}
+          {/* Directory of Page performances - Redesigned as Premium Brand Grid Card with Lazy Loading */}
           <div className="chart-card">
-            <div>
-              <h3 className="title-md">🔥 현재 운영 중인 실시간 기획전 성과 순위</h3>
-              <p className="body-sm" style={{color: 'var(--colors-muted)'}}>현재 활성화되어 있는 각 기획전별 순 유저(UV), 체류시간, 전환율 및 Last-Touch 기여 매출액 랭킹입니다.</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: 'var(--spacing-md)' }}>
+              <div>
+                <h3 className="title-md">
+                  {viewMode === 'average' ? '🔥 현재 운영 중인 실시간 기획전 성과 순위 (일 평균)' : '🔥 현재 운영 중인 실시간 기획전 성과 순위'}
+                </h3>
+                <p className="body-sm" style={{color: 'var(--colors-muted)', marginTop: '2px'}}>
+                  {viewMode === 'average' ? '현재 활성화되어 있는 각 기획전별 일 평균 성과 지표 랭킹입니다.' : '현재 활성화되어 있는 각 기획전별 순 유저(UV), 체류시간, 전환율 및 Last-Touch 기여 매출액 랭킹입니다.'}
+                </p>
+              </div>
+              <span className="caption-uppercase" style={{ backgroundColor: 'var(--colors-surface-soft)', color: 'var(--colors-brand-teal)', padding: '4px 10px', borderRadius: 'var(--rounded-pill)', fontSize: '11px', fontWeight: 700, border: '1px solid var(--colors-hairline)' }}>
+                총 {displayPages.length}개 운영 중
+              </span>
             </div>
-            <div className="table-container">
-              <table className="analytics-table">
-                <thead>
-                  <tr>
-                    <th>기획전 번호 (ID)</th>
-                    <th>기획전 명칭 (Campaign Title)</th>
-                    <th style={{ textAlign: 'right' }}>누적 조회수 (PV)</th>
-                    <th style={{ textAlign: 'right' }}>순 방문자 (UV)</th>
-                    <th style={{ textAlign: 'right' }}>평균 체류시간</th>
-                    <th style={{ textAlign: 'right' }}>이탈률</th>
-                    <th style={{ textAlign: 'right' }}>기여 매출액 (KRW)</th>
-                    <th style={{ textAlign: 'right' }}>구매 전환율 (CVR)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pages.map((p, idx) => (
-                    <tr key={p.id || idx}>
-                      <td style={{fontFamily: 'monospace', fontWeight: 600, color: 'var(--colors-muted)'}}>{p.id}</td>
-                      <td style={{fontWeight: 600, color: 'var(--colors-ink)'}}>{p.title}</td>
-                      <td style={{textAlign: 'right', fontWeight: 700}}>{p.pv.toLocaleString()}</td>
-                      <td style={{textAlign: 'right'}}>{p.uv.toLocaleString()}</td>
-                      <td style={{textAlign: 'right'}}>{p.avgStay}</td>
-                      <td style={{textAlign: 'right', color: parseFloat(p.bounceRate) > 40 ? 'var(--colors-warning)' : 'var(--colors-success)', fontWeight: 600}}>{p.bounceRate}</td>
-                      <td style={{textAlign: 'right', fontWeight: 700, color: 'var(--colors-brand-pink)'}}>₩{p.revenue.toLocaleString()}</td>
-                      <td style={{textAlign: 'right', fontWeight: 700, color: 'var(--colors-brand-teal)'}}>{p.cvr}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
 
-          {/* Controls Simulation */}
-          <div className="simulation-drawer">
-            <div className="simulation-info-text">
-              <h4 className="title-sm" style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-                <span>⚙️</span> 실시간 트래픽 가동 시뮬레이터 (Simulator Control)
-              </h4>
-              <p className="body-sm" style={{color: 'var(--colors-muted)'}}>실시간 유저 행동 시뮬레이션을 켜서 매출 증가, 전환 차트 변동, 텔레메트리 스트림의 갱신을 바로 모니터링할 수 있습니다.</p>
+            {/* Campaign Cards Grid */}
+            <div className="campaign-grid">
+              {displayPages.slice(0, visibleCount).map((p, idx) => {
+                // Dynamically parse brand name inside parentheses
+                const brandMatch = p.title.match(/\(([^)]+)\)/);
+                const brandName = brandMatch ? brandMatch[1] : 'LF MALL';
+                const cleanTitle = p.title.replace(/\([^)]+\)/, '').trim();
+
+                // Dynamic Brand Colors
+                const getBrandColor = (brand) => {
+                  const b = brand.toUpperCase();
+                  if (b.includes('DAKS') || b.includes('닥스')) return 'var(--colors-brand-pink)';
+                  if (b.includes('HAZZYS') || b.includes('헤지스')) return 'var(--colors-brand-teal)';
+                  if (b.includes('JILL') || b.includes('질스튜어트') || b.includes('질바이')) return 'var(--colors-brand-lavender)';
+                  if (b.includes('ATHE') || b.includes('아떼') || b.includes('바네사') || b.includes('앳코너')) return 'var(--colors-brand-ochre)';
+                  if (b.includes('LUXURY') || b.includes('명품') || b.includes('이자벨') || b.includes('바버') || b.includes('레오나드')) return 'var(--colors-brand-coral)';
+                  return 'var(--colors-brand-mint)';
+                };
+
+                const brandColor = getBrandColor(brandName);
+
+                return (
+                  <div key={p.id || idx} className="campaign-card" style={{ '--card-brand-color': brandColor }}>
+                    <div className="campaign-card-brand-stripe" style={{ backgroundColor: brandColor }} />
+                    
+                    <div className="campaign-card-header">
+                      <span className="campaign-card-brand" style={{ backgroundColor: `${brandColor}15`, color: brandColor }}>
+                        {brandName}
+                      </span>
+                      <span className="campaign-card-id">#{p.id}</span>
+                    </div>
+
+                    <h4 className="campaign-card-title" title={p.title}>{cleanTitle}</h4>
+
+                    <div className="campaign-card-metrics">
+                      <div className="campaign-metric-item">
+                        <span className="campaign-metric-label">
+                          {viewMode === 'average' ? '일 평균 PV' : '누적 PV'}
+                        </span>
+                        <span className="campaign-metric-value">{p.pv.toLocaleString()}</span>
+                      </div>
+                      <div className="campaign-metric-item">
+                        <span className="campaign-metric-label">
+                          {viewMode === 'average' ? '일 평균 UV' : '순 방문자'}
+                        </span>
+                        <span className="campaign-metric-value">{p.uv.toLocaleString()}</span>
+                      </div>
+                      <div className="campaign-metric-item">
+                        <span className="campaign-metric-label">
+                          {viewMode === 'average' ? '일 평균 클릭' : '클릭 활동'}
+                        </span>
+                        <span className="campaign-metric-value" style={{ color: 'var(--colors-brand-pink)', fontWeight: 700 }}>
+                          {p.clicks.toLocaleString()}회
+                        </span>
+                      </div>
+                      <div className="campaign-metric-item">
+                        <span className="campaign-metric-label">체류 시간</span>
+                        <span className="campaign-metric-value">{p.avgStay}</span>
+                      </div>
+                    </div>
+
+                    <div className="campaign-card-footer">
+                      <div className="campaign-ratio-group">
+                        <span className="campaign-ratio-badge" title="이탈률">
+                          🚪 {p.bounceRate}
+                        </span>
+                        <span className="campaign-ratio-badge" title="구매 전환율 (CVR)" style={{ color: 'var(--colors-brand-teal)' }}>
+                          🎯 {p.cvr}
+                        </span>
+                      </div>
+                      <span className="campaign-revenue-badge">
+                        ₩{p.revenue.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <div style={{display: 'flex', gap: '12px'}}>
-              <button className="btn btn-secondary" onClick={handleSimSingle}><IconZap /> 단일 패킷 생성</button>
-              <button className={`btn ${isSimulating ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setIsSimulating(!isSimulating)} style={{ backgroundColor: isSimulating ? 'var(--colors-brand-pink)' : 'var(--colors-canvas)', color: isSimulating ? '#ffffff' : 'var(--colors-ink)' }}>
-                {isSimulating ? <><IconPause /> 자동 수집 중지</> : <><IconPlay /> 자동 수집 가동</>}
-              </button>
-              <button className="btn btn-secondary" style={{color: 'var(--colors-error)'}} onClick={handleClear}><IconTrash /> 데이터 초기화</button>
-            </div>
+
+            {/* Lazy Load Button */}
+            {visibleCount < displayPages.length && (
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 'var(--spacing-lg)' }}>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => {
+                    setIsLoadingMore(true);
+                    setTimeout(() => {
+                      setVisibleCount(prev => prev + 10);
+                      setIsLoadingMore(false);
+                    }, 800);
+                  }}
+                  disabled={isLoadingMore}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 24px',
+                    borderRadius: 'var(--rounded-pill)',
+                    fontWeight: 600,
+                    border: '1px solid var(--colors-hairline)',
+                    backgroundColor: 'var(--colors-canvas)',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                    transition: 'all 0.2s',
+                    color: 'var(--colors-ink)'
+                  }}
+                >
+                  {isLoadingMore ? (
+                    <>
+                      <span className="spinner"></span>
+                      <span>데이터 집계 분석 중...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>➕ 더 많은 기획전 성과 로드 ({displayPages.length - visibleCount}개 대기)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       );
