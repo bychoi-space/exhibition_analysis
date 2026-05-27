@@ -337,21 +337,18 @@ app.post('/api/collect', async (req, res) => {
   if (!inMemoryDb[dateStr]) inMemoryDb[dateStr] = [];
   inMemoryDb[dateStr].push(newEvent);
 
-  const filePath = path.join(DB_DIR, `events-${dateStr}.json`);
+  // Upgrade database to ultra high-performance JSON Lines (JSONL) format
+  const filePath = path.join(DB_DIR, `events-${dateStr}.jsonl`);
 
   try {
-    let fileEvents = [];
-    if (fs.existsSync(filePath)) {
-      const content = await fs.promises.readFile(filePath, 'utf-8');
-      fileEvents = JSON.parse(content || '[]');
-    }
-    fileEvents.push(newEvent);
-    await fs.promises.writeFile(filePath, JSON.stringify(fileEvents, null, 2), 'utf-8');
+    // High performance O(1) text append instead of reading/writing large JSON arrays
+    const rawLine = JSON.stringify(newEvent) + '\n';
+    await fs.promises.appendFile(filePath, rawLine, 'utf-8');
     
-    console.log(`[INGESTION-SHARDED] Logged event ${type} to file and memory: events-${dateStr}.json`);
-    res.status(202).json({ success: true, message: 'Telemetry packet sharded successfully.' });
+    console.log(`[INGESTION-JSONL] Appended event ${type} to file and memory: events-${dateStr}.jsonl`);
+    res.status(202).json({ success: true, message: 'Telemetry packet appended successfully.' });
   } catch (err) {
-    console.warn("[INGESTION-WARNING] File system write failed. In-memory log holds backup.", err.message);
+    console.warn("[INGESTION-WARNING] File system append failed. In-memory log holds backup.", err.message);
     res.status(202).json({ success: true, message: 'Telemetry packet logged to in-memory backup.' });
   }
 });
@@ -383,14 +380,20 @@ app.get('/api/stats', async (req, res) => {
     for (const dateStr of dateList) {
       let segmentEvents = [];
       
-      // A. Attempt to read from file sharding
-      const filePath = path.join(DB_DIR, `events-${dateStr}.json`);
+      // A. Attempt to read from high-performance JSONL sharding
+      const filePath = path.join(DB_DIR, `events-${dateStr}.jsonl`);
       if (fs.existsSync(filePath)) {
         try {
           const content = await fs.promises.readFile(filePath, 'utf-8');
-          segmentEvents = JSON.parse(content || '[]');
+          // Parse lines safely
+          const lines = content.split('\n');
+          for (const line of lines) {
+            if (line.trim()) {
+              segmentEvents.push(JSON.parse(line));
+            }
+          }
         } catch(e) {
-          console.warn(`[STATS-READ-FILE-FAIL] Failed reading segment events-${dateStr}.json`, e.message);
+          console.warn(`[STATS-READ-JSONL-FAIL] Failed reading segment events-${dateStr}.jsonl`, e.message);
         }
       }
 
@@ -622,7 +625,7 @@ app.post('/api/reset', (req, res) => {
     if (!useInMemoryFallback && fs.existsSync(DB_DIR)) {
       const files = fs.readdirSync(DB_DIR);
       for (const file of files) {
-        if (file.endsWith('.json')) {
+        if (file.endsWith('.jsonl')) {
           fs.unlinkSync(path.join(DB_DIR, file));
         }
       }
