@@ -313,6 +313,13 @@ app.post('/api/collect', async (req, res) => {
 
   // Auto-extract exhibition ID on server side as an extra safety measure!
   let exhibitionId = extra?.exhibitionId || extractExhibitionId(url || '');
+  
+  // Dynamic self-registration: If we see a new exhibitionId accompanied by a scraped exhibitionTitle, register it dynamically!
+  if (exhibitionId && extra?.exhibitionTitle && !EXHIBITION_METADATA[exhibitionId]) {
+    EXHIBITION_METADATA[exhibitionId] = extra.exhibitionTitle;
+    console.log(`[DATABASE-DYNAMIC] Registered new exhibition dynamically: [ID: ${exhibitionId}] - ${extra.exhibitionTitle}`);
+  }
+
   const ts = timestamp || Date.now();
 
   const newEvent = {
@@ -326,7 +333,7 @@ app.post('/api/collect', async (req, res) => {
     extra: {
       ...extra,
       exhibitionId: exhibitionId || undefined,
-      exhibitionTitle: exhibitionId ? EXHIBITION_METADATA[exhibitionId] : undefined
+      exhibitionTitle: exhibitionId ? (EXHIBITION_METADATA[exhibitionId] || extra?.exhibitionTitle) : undefined
     }
   };
 

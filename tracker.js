@@ -202,8 +202,61 @@ function seedDatabase() {
 
 // --- Tracking SDK Interface ---
 
+// Helper: Extract exhibition ID from URL path or query parameters
+function extractExhibitionId(urlPath) {
+  if (!urlPath || typeof urlPath !== 'string') return null;
+  
+  // Pattern A: /app/event/103291
+  const matchA = urlPath.match(/\/app\/event\/([a-zA-Z0-9_-]+)/);
+  if (matchA) return matchA[1];
+  
+  // Pattern B: /planning.do?cmd=getEventDetail&datacls=992831
+  const matchB = urlPath.match(/datacls=([a-zA-Z0-9_-]+)/);
+  if (matchB) return matchB[1];
+  
+  return null;
+}
+
+// Helper: Safely stream telemetries to the live backend server
+const sendToServer = (event) => {
+  if (typeof fetch !== 'undefined') {
+    fetch('/api/collect', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(event)
+    }).catch(err => {
+      console.warn('[TRACKER-WARNING] Telemetry live streaming failed. Operating in standalone mode.', err.message);
+    });
+  }
+};
+
 export const trackPageView = (pageType, url, extra = {}) => {
   const events = getRawEvents();
+  
+  // Extract and resolve exhibition ID & dynamic Title on client side
+  let exhibitionId = extra.exhibitionId || extractExhibitionId(url);
+  let exhibitionTitle = extra.exhibitionTitle;
+  
+  if (exhibitionId && !exhibitionTitle && typeof document !== 'undefined') {
+    let pageTitle = document.title || '';
+    // Clean up generic corporate suffixes (e.g., " | LFmall", " - 엘에프몰" etc.)
+    exhibitionTitle = pageTitle
+      .replace(/\s*[|:-]\s*(LFmall|엘에프몰|LF몰|LFMALL|lf몰)\s*$/gi, '')
+      .trim();
+      
+    // Fallback search in meta tags if generic
+    if (!exhibitionTitle || /^(LFmall|엘에프몰|LF몰|LFMALL)$/i.test(exhibitionTitle)) {
+      const ogTitle = document.querySelector('meta[property="og:title"]');
+      if (ogTitle && ogTitle.content) {
+        exhibitionTitle = ogTitle.content
+          .replace(/\s*[|:-]\s*(LFmall|엘에프몰|LF몰|LFMALL|lf몰)\s*$/gi, '')
+          .trim();
+      }
+    }
+  }
+
   const event = {
     timestamp: Date.now(),
     type: 'PAGE_VIEW',
@@ -211,14 +264,25 @@ export const trackPageView = (pageType, url, extra = {}) => {
     url,
     sessionId: getSessionId(),
     userId: getUserId(),
-    extra
+    extra: {
+      ...extra,
+      exhibitionId: exhibitionId || undefined,
+      exhibitionTitle: exhibitionTitle || undefined
+    }
   };
   events.push(event);
   saveEvents(events);
+  
+  // Live server integration
+  sendToServer(event);
 };
 
 export const trackEvent = (type, pageType, elementId, extra = {}) => {
   const events = getRawEvents();
+  
+  let currentUrl = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '';
+  let exhibitionId = extra.exhibitionId || extractExhibitionId(currentUrl);
+
   const event = {
     timestamp: Date.now(),
     type,
@@ -226,10 +290,16 @@ export const trackEvent = (type, pageType, elementId, extra = {}) => {
     elementId,
     sessionId: getSessionId(),
     userId: getUserId(),
-    extra
+    extra: {
+      ...extra,
+      exhibitionId: exhibitionId || undefined
+    }
   };
   events.push(event);
   saveEvents(events);
+  
+  // Live server integration
+  sendToServer(event);
 };
 
 // Clear Logs and Reset to default Seed
