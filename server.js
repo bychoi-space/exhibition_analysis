@@ -283,8 +283,8 @@ function seedServerDatabase() {
   return events;
 }
 
-// Initial seeding
-seedServerDatabase();
+// Initial seeding commented out for production clean slate
+// seedServerDatabase();
 
 // --- HELPER FUNCTION: EXTRACT EXHIBITION ID FROM URL ---
 function extractExhibitionId(urlPath) {
@@ -618,7 +618,7 @@ app.get('/api/stats', async (req, res) => {
   });
 });
 
-// 3. Clear and Re-seed
+// 3. Clear Database
 app.post('/api/reset', (req, res) => {
   try {
     // 1. Wipe in-memory store
@@ -637,9 +637,7 @@ app.post('/api/reset', (req, res) => {
       console.log('[RESET] Wiped existing sharded database files.');
     }
     
-    // 3. Re-seed database
-    seedServerDatabase();
-    res.json({ success: true, message: 'Database reset and seeded with initial parameters.' });
+    res.json({ success: true, message: 'Database reset successfully. Operating on a clean slate.' });
   } catch (err) {
     console.warn("[RESET-WARNING] Failed to reset database files, resetting in-memory fallback store instead:", err.message);
     try {
@@ -647,8 +645,7 @@ app.post('/api/reset', (req, res) => {
         delete inMemoryDb[key];
       }
       useInMemoryFallback = true;
-      seedServerDatabase();
-      res.json({ success: true, message: 'Database reset and seeded in-memory store due to file write constraint.' });
+      res.json({ success: true, message: 'Database reset successfully on fallback in-memory store.' });
     } catch (fallbackErr) {
       res.status(500).json({ success: false, message: 'Failed to reset database.' });
     }
