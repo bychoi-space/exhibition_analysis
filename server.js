@@ -43,13 +43,8 @@ try {
   useInMemoryFallback = true;
 }
 
-// Clean database seed tailored specifically for active LF Mall Exhibitions
-const EXHIBITION_METADATA = {
-  '103291': '닥스 봄 데일리 스페셜 위크 (DAKKS)',
-  '992831': '아떼 바캉스 실크 원피스 컬렉션 (ATHE)',
-  '553920': '헤지스 남성 트렌디 린넨 캐주얼 대전 (HAZZYS)',
-  '402391': '명품 해외 패션 럭셔리 시즌 오프 (LUXURY)'
-};
+// Dynamic exhibition registry - populated exclusively by real GTM/Tracker crawled data via /api/collect
+const EXHIBITION_METADATA = {};
 
 function seedServerDatabase() {
   console.log('Seeding server exhibition telemetry database...');
