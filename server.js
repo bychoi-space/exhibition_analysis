@@ -276,6 +276,10 @@ function extractExhibitionId(urlPath) {
   // Pattern D: /app/exhibition/301
   const matchD = urlPath.match(/\/app\/exhibition\/([a-zA-Z0-9_-]+)/);
   if (matchD) return matchD[1];
+
+  // Pattern E: /exhibitions/301 (GTM legacy pattern)
+  const matchE = urlPath.match(/\/exhibitions\/([a-zA-Z0-9_-]+)/);
+  if (matchE) return matchE[1];
   
   return null;
 }
