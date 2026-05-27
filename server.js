@@ -24,10 +24,23 @@ app.get('/style.css', (req, res) => {
   res.sendFile(path.join(__dirname, 'style.css'));
 });
 
-// --- Sharded Database Store Initialization ---
-const DB_DIR = path.join(__dirname, 'db_store');
-if (!fs.existsSync(DB_DIR)) {
-  fs.mkdirSync(DB_DIR);
+// --- Sharded Database Store Initialization (Vercel Serverless /tmp Support & Graceful Fallback) ---
+const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_VERSION || !__dirname.includes('exhibition_analysis');
+const DB_DIR = isServerless 
+  ? path.join('/tmp', 'db_store') 
+  : path.join(__dirname, 'db_store');
+
+let useInMemoryFallback = false;
+const inMemoryDb = {}; // { 'YYYY-MM-DD': [events] }
+
+try {
+  if (!fs.existsSync(DB_DIR)) {
+    fs.mkdirSync(DB_DIR, { recursive: true });
+  }
+  console.log(`[DATABASE] Configured sharded storage directory at: ${DB_DIR}`);
+} catch (err) {
+  console.warn(`[DATABASE-WARNING] Directory creation failed at ${DB_DIR}. Gracefully falling back to in-memory partitioning.`, err.message);
+  useInMemoryFallback = true;
 }
 
 // Clean database seed tailored specifically for active LF Mall Exhibitions
@@ -250,13 +263,23 @@ function seedServerDatabase() {
     grouped[dateStr].push(e);
   });
   
-  // Write each date's partition file to db_store
-  Object.keys(grouped).forEach(dateStr => {
-    const filePath = path.join(DB_DIR, `events-${dateStr}.json`);
-    fs.writeFileSync(filePath, JSON.stringify(grouped[dateStr], null, 2));
-  });
-  
-  console.log(`Seeding complete. Generated ${Object.keys(grouped).length} sharded database files.`);
+  if (useInMemoryFallback) {
+    Object.assign(inMemoryDb, grouped);
+    console.log(`[SEED-FALLBACK] Seeded ${Object.keys(grouped).length} in-memory shards.`);
+  } else {
+    try {
+      // Write each date's partition file to db_store
+      Object.keys(grouped).forEach(dateStr => {
+        const filePath = path.join(DB_DIR, `events-${dateStr}.json`);
+        fs.writeFileSync(filePath, JSON.stringify(grouped[dateStr], null, 2));
+      });
+      console.log(`Seeding complete. Generated ${Object.keys(grouped).length} sharded database files at ${DB_DIR}.`);
+    } catch (err) {
+      console.warn("[SEED-WARNING] File writing failed during seeding. Falling back to in-memory store.", err.message);
+      useInMemoryFallback = true;
+      Object.assign(inMemoryDb, grouped);
+    }
+  }
   return events;
 }
 
@@ -314,6 +337,13 @@ app.post('/api/collect', async (req, res) => {
   const d = String(dateObj.getDate()).padStart(2, '0');
   const dateStr = `${y}-${m}-${d}`;
 
+  if (useInMemoryFallback) {
+    if (!inMemoryDb[dateStr]) inMemoryDb[dateStr] = [];
+    inMemoryDb[dateStr].push(newEvent);
+    console.log(`[INGESTION-FALLBACK] Logged event to in-memory shard: ${dateStr}`);
+    return res.status(202).json({ success: true, message: 'Telemetry packet logged to in-memory shard.' });
+  }
+
   const filePath = path.join(DB_DIR, `events-${dateStr}.json`);
 
   try {
@@ -325,11 +355,14 @@ app.post('/api/collect', async (req, res) => {
     fileEvents.push(newEvent);
     await fs.promises.writeFile(filePath, JSON.stringify(fileEvents, null, 2), 'utf-8');
     
-    console.log(`[INGESTION-SHARDED] Logged event ${type} for user ${userId} to file events-${dateStr}.json`);
+    console.log(`[INGESTION-SHARDED] Logged event ${type} to file events-${dateStr}.json`);
     res.status(202).json({ success: true, message: 'Telemetry packet sharded successfully.' });
   } catch (err) {
-    console.error("Failed to write sharded event log:", err);
-    res.status(500).json({ success: false, message: 'Database write failure.' });
+    console.warn("[INGESTION-WARNING] File system write failed. Gracefully falling back to in-memory log.", err.message);
+    useInMemoryFallback = true;
+    if (!inMemoryDb[dateStr]) inMemoryDb[dateStr] = [];
+    inMemoryDb[dateStr].push(newEvent);
+    res.status(202).json({ success: true, message: 'Telemetry packet logged to fallback in-memory shard.' });
   }
 });
 
@@ -358,16 +391,33 @@ app.get('/api/stats', async (req, res) => {
   let events = [];
   try {
     for (const dateStr of dateList) {
-      const filePath = path.join(DB_DIR, `events-${dateStr}.json`);
-      if (fs.existsSync(filePath)) {
-        const content = await fs.promises.readFile(filePath, 'utf-8');
-        const fileEvents = JSON.parse(content || '[]');
-        events = events.concat(fileEvents);
+      if (useInMemoryFallback) {
+        if (inMemoryDb[dateStr]) {
+          events = events.concat(inMemoryDb[dateStr]);
+        }
+      } else {
+        const filePath = path.join(DB_DIR, `events-${dateStr}.json`);
+        if (fs.existsSync(filePath)) {
+          const content = await fs.promises.readFile(filePath, 'utf-8');
+          const fileEvents = JSON.parse(content || '[]');
+          events = events.concat(fileEvents);
+        } else if (inMemoryDb[dateStr]) {
+          events = events.concat(inMemoryDb[dateStr]);
+        }
       }
     }
   } catch (err) {
-    console.error("Failed to read sharded database:", err);
-    return res.status(500).json({ success: false, message: 'Database read failure.' });
+    console.warn("[STATS-WARNING] Failed to read sharded database from filesystem. Trying in-memory backup...", err.message);
+    try {
+      events = [];
+      for (const dateStr of dateList) {
+        if (inMemoryDb[dateStr]) {
+          events = events.concat(inMemoryDb[dateStr]);
+        }
+      }
+    } catch (fallbackErr) {
+      return res.status(500).json({ success: false, message: 'Database read failure.' });
+    }
   }
   
   // --- DAILY PERFORMANCE CALCULATION ---
@@ -564,18 +614,37 @@ app.get('/api/stats', async (req, res) => {
 // 3. Clear and Re-seed
 app.post('/api/reset', (req, res) => {
   try {
-    const files = fs.readdirSync(DB_DIR);
-    for (const file of files) {
-      if (file.endsWith('.json')) {
-        fs.unlinkSync(path.join(DB_DIR, file));
-      }
+    // 1. Wipe in-memory store
+    for (const key of Object.keys(inMemoryDb)) {
+      delete inMemoryDb[key];
     }
-    console.log('[RESET] Wiped existing sharded database files.');
+    
+    // 2. Wipe physical files if directory exists and fallback is not forced
+    if (!useInMemoryFallback && fs.existsSync(DB_DIR)) {
+      const files = fs.readdirSync(DB_DIR);
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          fs.unlinkSync(path.join(DB_DIR, file));
+        }
+      }
+      console.log('[RESET] Wiped existing sharded database files.');
+    }
+    
+    // 3. Re-seed database
     seedServerDatabase();
     res.json({ success: true, message: 'Database reset and seeded with initial parameters.' });
   } catch (err) {
-    console.error("Failed to reset database files:", err);
-    res.status(500).json({ success: false, message: 'Failed to reset database.' });
+    console.warn("[RESET-WARNING] Failed to reset database files, resetting in-memory fallback store instead:", err.message);
+    try {
+      for (const key of Object.keys(inMemoryDb)) {
+        delete inMemoryDb[key];
+      }
+      useInMemoryFallback = true;
+      seedServerDatabase();
+      res.json({ success: true, message: 'Database reset and seeded in-memory store due to file write constraint.' });
+    } catch (fallbackErr) {
+      res.status(500).json({ success: false, message: 'Failed to reset database.' });
+    }
   }
 });
 
@@ -662,22 +731,37 @@ app.post('/api/simulate', async (req, res) => {
       const m = String(dateObj.getMonth() + 1).padStart(2, '0');
       const d = String(dateObj.getDate()).padStart(2, '0');
       const dateStr = `${y}-${m}-${d}`;
-      const filePath = path.join(DB_DIR, `events-${dateStr}.json`);
-      
-      let fileEvents = [];
-      if (fs.existsSync(filePath)) {
-        const content = await fs.promises.readFile(filePath, 'utf-8');
-        fileEvents = JSON.parse(content || '[]');
+
+      if (useInMemoryFallback) {
+        if (!inMemoryDb[dateStr]) inMemoryDb[dateStr] = [];
+        inMemoryDb[dateStr].push(e);
+      } else {
+        const filePath = path.join(DB_DIR, `events-${dateStr}.json`);
+        let fileEvents = [];
+        if (fs.existsSync(filePath)) {
+          const content = await fs.promises.readFile(filePath, 'utf-8');
+          fileEvents = JSON.parse(content || '[]');
+        }
+        fileEvents.push(e);
+        await fs.promises.writeFile(filePath, JSON.stringify(fileEvents, null, 2), 'utf-8');
       }
-      fileEvents.push(e);
-      await fs.promises.writeFile(filePath, JSON.stringify(fileEvents, null, 2), 'utf-8');
     }
     
-    console.log(`[SIMULATION-SHARDED] Dispatched ${simEvents.length} events into date sharded files.`);
+    console.log(`[SIMULATION] Dispatched ${simEvents.length} events (fallback: ${useInMemoryFallback}).`);
     res.json({ success: true, message: 'Artificial exhibition shopper traffic packet dispatched.' });
   } catch (err) {
-    console.error("Failed to write simulation sharded logs:", err);
-    res.status(500).json({ success: false, message: 'Simulation database write failure.' });
+    console.warn("[SIMULATION-WARNING] Failed to write simulation sharded logs to filesystem. Falling back to in-memory.", err.message);
+    useInMemoryFallback = true;
+    for (const e of simEvents) {
+      const dateObj = new Date(e.timestamp);
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${m}-${d}`;
+      if (!inMemoryDb[dateStr]) inMemoryDb[dateStr] = [];
+      inMemoryDb[dateStr].push(e);
+    }
+    res.json({ success: true, message: 'Artificial exhibition shopper traffic packet dispatched to fallback in-memory store.' });
   }
 });
 
