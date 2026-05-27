@@ -433,20 +433,6 @@ app.get('/api/stats', async (req, res) => {
   const sessionToLastExhibition = {};
   const exhibitionStats = {};
 
-  // Initialize statistics map for registered exhibitions
-  Object.keys(EXHIBITION_METADATA).forEach(id => {
-    exhibitionStats[id] = {
-      id: id,
-      title: EXHIBITION_METADATA[id],
-      pv: 0,
-      uvSet: new Set(),
-      sessionTimes: {},
-      attributedRevenue: 0,
-      orderCount: 0,
-      clicks: 0 // [NEW]
-    };
-  });
-
   // Walk through the logs chronologically to map sessions and attribute purchases
   events.forEach(e => {
     // 1. Trace the event date for daily performance calculation
@@ -456,10 +442,24 @@ app.get('/api/stats', async (req, res) => {
     const d = String(dateObj.getDate()).padStart(2, '0');
     const dateStr = `${y}-${m}-${d}`;
 
-    // 2. Trace the last visited exhibition in this session
+     // 2. Trace the last visited exhibition in this session
     const currentExId = e.extra?.exhibitionId || extractExhibitionId(e.url || '');
     if (currentExId && EXHIBITION_METADATA[currentExId]) {
       sessionToLastExhibition[e.sessionId] = currentExId;
+      
+      // Dynamic on-the-fly stats initialization
+      if (!exhibitionStats[currentExId]) {
+        exhibitionStats[currentExId] = {
+          id: currentExId,
+          title: EXHIBITION_METADATA[currentExId],
+          pv: 0,
+          uvSet: new Set(),
+          sessionTimes: {},
+          attributedRevenue: 0,
+          orderCount: 0,
+          clicks: 0
+        };
+      }
       
       // Update exhibition traffic metrics
       const stats = exhibitionStats[currentExId];
