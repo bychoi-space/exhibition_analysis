@@ -1,0 +1,146 @@
+// ==========================================================================
+// CampaignGrid.js: Premium Brand Grid Card with Lazy Loading
+// ==========================================================================
+
+const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, isLoadingMore, setIsLoadingMore }) => {
+  return (
+    <div className="chart-card">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: 'var(--spacing-md)' }}>
+        <div>
+          <h3 className="title-md">
+            {viewMode === 'average' ? '🔥 현재 운영 중인 실시간 기획전 성과 순위 (일 평균)' : '🔥 현재 운영 중인 실시간 기획전 성과 순위'}
+          </h3>
+          <p className="body-sm" style={{color: 'var(--colors-muted)', marginTop: '2px'}}>
+            {viewMode === 'average' ? '현재 활성화되어 있는 각 기획전별 일 평균 성과 지표 랭킹입니다.' : '현재 활성화되어 있는 각 기획전별 순 유저(UV), 체류시간, 전환율 및 Last-Touch 기여 매출액 랭킹입니다.'}
+          </p>
+        </div>
+        <span className="caption-uppercase" style={{ backgroundColor: 'var(--colors-surface-soft)', color: 'var(--colors-brand-teal)', padding: '4px 10px', borderRadius: 'var(--rounded-pill)', fontSize: '11px', fontWeight: 700, border: '1px solid var(--colors-hairline)' }}>
+          총 {displayPages.length}개 운영 중
+        </span>
+      </div>
+
+      {/* Campaign Cards Grid */}
+      <div className="campaign-grid">
+        {displayPages.slice(0, visibleCount).map((p, idx) => {
+          // Dynamically parse brand name inside parentheses
+          const brandMatch = p.title.match(/\(([^)]+)\)/);
+          const brandName = brandMatch ? brandMatch[1] : 'LF MALL';
+          const cleanTitle = p.title.replace(/\([^)]+\)/, '').trim();
+
+          // Dynamic Brand Colors
+          const getBrandColor = (brand) => {
+            const b = brand.toUpperCase();
+            if (b.includes('DAKS') || b.includes('닥스')) return 'var(--colors-brand-pink)';
+            if (b.includes('HAZZYS') || b.includes('헤지스')) return 'var(--colors-brand-teal)';
+            if (b.includes('JILL') || b.includes('질스튜어트') || b.includes('질바이')) return 'var(--colors-brand-lavender)';
+            if (b.includes('ATHE') || b.includes('아떼') || b.includes('바네사') || b.includes('앳코너')) return 'var(--colors-brand-ochre)';
+            if (b.includes('LUXURY') || b.includes('명품') || b.includes('이자벨') || b.includes('바버') || b.includes('레오나드')) return 'var(--colors-brand-coral)';
+            return 'var(--colors-brand-mint)';
+          };
+
+          const brandColor = getBrandColor(brandName);
+
+          return (
+            <div key={p.id || idx} className="campaign-card" style={{ '--card-brand-color': brandColor }}>
+              <div className="campaign-card-brand-stripe" style={{ backgroundColor: brandColor }} />
+              
+              <div className="campaign-card-header">
+                <span className="campaign-card-brand" style={{ backgroundColor: `${brandColor}15`, color: brandColor }}>
+                  {brandName}
+                </span>
+                <span className="campaign-card-id">#{p.id}</span>
+              </div>
+
+              <h4 className="campaign-card-title" title={p.title}>{cleanTitle}</h4>
+
+              <div className="campaign-card-metrics">
+                <div className="campaign-metric-item">
+                  <span className="campaign-metric-label">
+                    {viewMode === 'average' ? '일 평균 PV' : '누적 PV'}
+                  </span>
+                  <span className="campaign-metric-value">{p.pv.toLocaleString()}</span>
+                </div>
+                <div className="campaign-metric-item">
+                  <span className="campaign-metric-label">
+                    {viewMode === 'average' ? '일 평균 UV' : '순 방문자'}
+                  </span>
+                  <span className="campaign-metric-value">{p.uv.toLocaleString()}</span>
+                </div>
+                <div className="campaign-metric-item">
+                  <span className="campaign-metric-label">
+                    {viewMode === 'average' ? '일 평균 클릭' : '클릭 활동'}
+                  </span>
+                  <span className="campaign-metric-value" style={{ color: 'var(--colors-brand-pink)', fontWeight: 700 }}>
+                    {p.clicks.toLocaleString()}회
+                  </span>
+                </div>
+                <div className="campaign-metric-item">
+                  <span className="campaign-metric-label">체류 시간</span>
+                  <span className="campaign-metric-value">{p.avgStay}</span>
+                </div>
+              </div>
+
+              <div className="campaign-card-footer">
+                <div className="campaign-ratio-group">
+                  <span className="campaign-ratio-badge" title="이탈률">
+                    🚪 {p.bounceRate}
+                  </span>
+                  <span className="campaign-ratio-badge" title="구매 전환율 (CVR)" style={{ color: 'var(--colors-brand-teal)' }}>
+                    🎯 {p.cvr}
+                  </span>
+                </div>
+                <span className="campaign-revenue-badge">
+                  ₩{p.revenue.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Lazy Load Button */}
+      {visibleCount < displayPages.length && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 'var(--spacing-lg)' }}>
+          <button 
+            className="btn btn-secondary" 
+            onClick={() => {
+              setIsLoadingMore(true);
+              setTimeout(() => {
+                setVisibleCount(prev => prev + 10);
+                setIsLoadingMore(false);
+              }, 800);
+            }}
+            disabled={isLoadingMore}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 24px',
+              borderRadius: 'var(--rounded-pill)',
+              fontWeight: 600,
+              border: '1px solid var(--colors-hairline)',
+              backgroundColor: 'var(--colors-canvas)',
+              cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+              transition: 'all 0.2s',
+              color: 'var(--colors-ink)'
+            }}
+          >
+            {isLoadingMore ? (
+              <>
+                <span className="spinner"></span>
+                <span>데이터 집계 분석 중...</span>
+              </>
+            ) : (
+              <>
+                <span>➕ 더 많은 기획전 성과 로드 ({displayPages.length - visibleCount}개 대기)</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+window.CampaignGrid = CampaignGrid;
