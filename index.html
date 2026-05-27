@@ -614,21 +614,21 @@
       }, [startDate, endDate]);
 
       const isLiveServer = window.location.protocol.startsWith('http') && !window.location.hostname.endsWith('github.io');
+      const apiBaseUrl = isLiveServer ? '' : 'https://exhibition-analysis-bychoi-s-projects.vercel.app';
 
       const refresh = async () => {
-        if (isLiveServer) {
-          try {
-            const res = await fetch(`/api/stats?startDate=${startDate}&endDate=${endDate}`);
-            const data = await res.json();
-            setStats(data.stats);
-            setFunnel(data.funnel);
-            setPages(data.pages);
-            setDailyPerformance(data.dailyPerformance || []);
-            setLogs(data.logs);
-          } catch (e) {
-            console.error("Failed to fetch live stats from server.", e);
-          }
-        } else {
+        // ALWAYS try fetching from live server first (supports both live deployment and file:// via absolute API base)
+        try {
+          const res = await fetch(`${apiBaseUrl}/api/stats?startDate=${startDate}&endDate=${endDate}`);
+          const data = await res.json();
+          setStats(data.stats);
+          setFunnel(data.funnel);
+          setPages(data.pages);
+          setDailyPerformance(data.dailyPerformance || []);
+          setLogs(data.logs);
+        } catch (e) {
+          console.error("Failed to fetch live stats from server. Checking local database fallback...", e);
+          // Fallback to local storage computation only when network is completely offline
           const data = getLocalAggregatedStats(startDate, endDate);
           setStats(data.stats);
           setFunnel(data.funnel);
@@ -640,21 +640,9 @@
 
       useEffect(() => {
         refresh();
-        if (isLiveServer) {
-          const poll = setInterval(refresh, 2500); // Live poll every 2.5s
-          return () => clearInterval(poll);
-        } else {
-          const handleUpdate = () => {
-            const data = getLocalAggregatedStats(startDate, endDate);
-            setStats(data.stats);
-            setFunnel(data.funnel);
-            setPages(data.pages);
-            setDailyPerformance(data.dailyPerformance || []);
-            setLogs(data.logs);
-          };
-          window.addEventListener('clay_analytics_update', handleUpdate);
-          return () => window.removeEventListener('clay_analytics_update', handleUpdate);
-        }
+        // Dynamic live server polling (works for both live domain and local file:// absolute endpoints)
+        const poll = setInterval(refresh, 2500); 
+        return () => clearInterval(poll);
       }, [startDate, endDate]);
 
       const handlePresetChange = (preset) => {
