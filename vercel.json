@@ -8,6 +8,10 @@
   ],
   "routes": [
     {
+      "src": "/(style.css|exhibition_analytics_icon.png|app.js|store.js|dashboard.js|tracker.js)",
+      "continue": true
+    },
+    {
       "src": "/(.*)",
       "dest": "server.js"
     }
