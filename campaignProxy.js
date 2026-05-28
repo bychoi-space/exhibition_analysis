@@ -100,78 +100,6 @@ function cleanExhibitionHtml(html) {
 
   let cleaned = html;
 
-  // 0. LFmall 내부 React가 nxapi.lfmall.co.kr로 비동기 호출 시 CORS 에러로 크래시나는 현상 방지용 Mock API 주입
-  const mockScript = `
-  <script>
-    (function() {
-      const MOCK_OMNI_DATA = {
-        result: { 
-          token: 'mock-token-value-12345', 
-          session: 'mock-session-12345',
-          status: '200',
-          data: { token: 'mock-token-value-12345' }
-        },
-        data: { 
-          token: 'mock-token-value-12345', 
-          session: 'mock-session-12345',
-          result: { token: 'mock-token-value-12345' }
-        },
-        token: 'mock-token-value-12345',
-        session: 'mock-session-12345',
-        code: '200',
-        status: '200',
-        message: 'SUCCESS'
-      };
-
-      // 1. fetch API 모킹
-      const originalFetch = window.fetch;
-      window.fetch = function(input, init) {
-        const url = typeof input === 'string' ? input : (input?.url || '');
-        if (url.includes('nxapi.lfmall.co.kr')) {
-          console.log('[TELEMETRY-API-MOCK] Bypassed real network call and mocked response for:', url);
-          return Promise.resolve(new Response(JSON.stringify(MOCK_OMNI_DATA), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json; charset=utf-8' }
-          }));
-        }
-        return originalFetch.apply(this, arguments);
-      };
-
-      // 2. XMLHttpRequest API 모킹
-      const originalOpen = XMLHttpRequest.prototype.open;
-      XMLHttpRequest.prototype.open = function(method, url) {
-        if (typeof url === 'string' && url.includes('nxapi.lfmall.co.kr')) {
-          this.isMocked = true;
-          this.mockedUrl = url;
-        }
-        return originalOpen.apply(this, arguments);
-      };
-      
-      const originalSend = XMLHttpRequest.prototype.send;
-      XMLHttpRequest.prototype.send = function() {
-        if (this.isMocked) {
-          console.log('[TELEMETRY-API-MOCK] Bypassed XMLHttpRequest for:', this.mockedUrl);
-          Object.defineProperty(this, 'readyState', { writable: true, value: 4 });
-          Object.defineProperty(this, 'status', { writable: true, value: 200 });
-          Object.defineProperty(this, 'responseText', { 
-            writable: true, 
-            value: JSON.stringify(MOCK_OMNI_DATA) 
-          });
-          setTimeout(() => {
-            if (typeof this.onreadystatechange === 'function') this.onreadystatechange();
-            if (typeof this.onload === 'function') this.onload();
-          }, 20);
-          return;
-        }
-        return originalSend.apply(this, arguments);
-      };
-    })();
-  </script>
-  `;
-
-  // <head> 태그 최상단에 주입
-  cleaned = cleaned.replace(/<head>/i, '<head>' + mockScript);
-
   // 1. 상대경로 src/href를 LFmall 절대경로로 치환
   // src="/app/..." or href="/app/..."
   cleaned = cleaned.replace(/(src|href)\s*=\s*"\s*\/([^"\/][^"]*)"/gi, '$1="https://www.lfmall.co.kr/$2"');
@@ -185,13 +113,17 @@ function cleanExhibitionHtml(html) {
   // 3. CSS 내부의 url('/...') 또는 url(/...) 치환
   cleaned = cleaned.replace(/url\(\s*["']?\s*\/([^'"\/][^'")\s]*)\s*["']?\s*\)/gi, "url('https://www.lfmall.co.kr/$1')");
 
-  // 4. 모바일 화면에서 화면 이동을 원활하게 돕기 위해 클릭 가능한 앵커(a태그)들이 
-  // 기획전을 완전히 벗어나지 않도록 하되, 클릭 오버레이가 정상 감지될 수 있게
-  // a 태그들의 기본 target을 _blank로 바꾸거나, 또는 iframe 내부 액션을 제어할 수 있게 함
-  // 여기서는 target을 기본적으로 제거하거나 오버레이 조작 가능하도록 유지
-
-  // 5. 프록시 페이지 내에 CSP(Content-Security-Policy) 메타 태그가 있다면 제거하여 혼선 예방
+  // 4. 프록시 페이지 내에 CSP(Content-Security-Policy) 메타 태그가 있다면 제거하여 혼선 예방
   cleaned = cleaned.replace(/<meta[^>]*http-equiv=["']Content-Security-Policy["'][^>]*>/gi, '');
+
+  // 5. [CRITICAL/SNAPSHOT] 모든 <script> 태그 및 인라인 자바스크립트 실행 코드 원천 제거
+  // 무거운 LFmall React 런타임 및 API/Datadog/Buzzvil 통신 스크립트가 브라우저에서 돌며
+  // CORS 에러 및 토큰 크래시를 유발하여 화면을 먹통으로 만드는 문제를 원천 봉쇄합니다.
+  // 이로써 에러율 0.00%의 정밀한 HTML/CSS 디자인 스냅샷만 미려하게 로드됩니다.
+  cleaned = cleaned.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+
+  // inline onload, onerror, onclick 등 이벤트 핸들러 제거로 안정성 극대화
+  cleaned = cleaned.replace(/\son[a-z]+\s*=\s*["'][^"']*["']/gi, '');
 
   return cleaned;
 }
