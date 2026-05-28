@@ -402,8 +402,17 @@ app.post('/api/collect', async (req, res) => {
     const brandMatch = safeExtra.exhibitionTitle.match(/\(([^)]+)\)/);
     const brand = brandMatch ? brandMatch[1] : 'LF MALL';
     
-    // 2. Force update metadata if we have a new verified title or if it's completely missing
-    if ((verifiedTitle && metadata[exhibitionId]?.title !== verifiedTitle) || !metadata[exhibitionId]) {
+    // 2. Self-healing: if the current safeExtra title is corrupted, or if the stored metadata is corrupted, fix it
+    const isCorrupted = (title) => title && (title.includes('나를 나답게') || title.includes('LFmall.com') || title === 'LFmall');
+    
+    if (isCorrupted(safeExtra.exhibitionTitle)) {
+      safeExtra.exhibitionTitle = `기획전 캠페인_${exhibitionId}`;
+    }
+    
+    const isStoredCorrupted = metadata[exhibitionId] && isCorrupted(metadata[exhibitionId].title);
+    
+    // 3. Force update metadata if we have a new verified title, if it's completely missing, or if stored is corrupted
+    if ((verifiedTitle && metadata[exhibitionId]?.title !== verifiedTitle) || !metadata[exhibitionId] || isStoredCorrupted) {
       metadata[exhibitionId] = { id: exhibitionId, title: safeExtra.exhibitionTitle, brand };
       await saveMetadata(metadata);
     }
