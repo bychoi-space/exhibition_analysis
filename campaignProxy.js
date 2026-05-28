@@ -7,8 +7,10 @@ const https = require('https');
  */
 function fetchAndCleanExhibition(exhibitionId) {
   return new Promise((resolve, reject) => {
-    // www.lfmall.co.kr 모바일/데스크톱 라우트
-    const url = `https://www.lfmall.co.kr/app/event/${exhibitionId}`;
+    // [SSR-SWITCH] 자바스크립트(React) 런타임이 있어야만 화면이 채워지는 /app/event/ 대신,
+    // 서버에서 완성된 HTML/CSS/이미지 레이아웃을 그대로 다 꽂아서 반환하는 순수 SSR 기반의 planning.do 엔드포인트로 우회 Fetch합니다.
+    // 이로써 자바스크립트를 모두 걷어내도 100% 미려한 모바일 화면 스냅샷이 완벽히 복원됩니다.
+    const url = `https://www.lfmall.co.kr/planning.do?cmd=getEventDetail&datacls=${exhibitionId}`;
     
     // 모바일 뷰포트용 User-Agent 설정
     const options = {
