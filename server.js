@@ -212,126 +212,6 @@ async function seedServerDatabase() {
   console.log('[RESET] All data cleared from memory and Redis.');
 }
 
-// --- SERVER-SIDE EXHIBITION TITLE CRAWLER ---
-// Fetches the real exhibition title directly from LFmall pages.
-// Client-provided titles are unreliable because they may contain product names
-// when users view products within an exhibition context.
-
-const crawledTitleCache = {}; // In-memory cache for crawled titles
-
-function crawlExhibitionTitle(exhibitionId) {
-  return new Promise((resolve) => {
-    const targetUrl = `https://www.lfmall.co.kr/app/event/${exhibitionId}`;
-    const options = {
-      hostname: 'www.lfmall.co.kr',
-      path: `/app/event/${exhibitionId}`,
-      method: 'GET',
-      port: 443,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'ko-KR,ko;q=0.9'
-      },
-      timeout: 8000
-    };
-
-    const req = https.request(options, (res) => {
-      // Follow redirects (one level)
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        console.log(`[CRAWL] ${exhibitionId} redirected → exhibition may not exist`);
-        resolve(null);
-        res.resume();
-        return;
-      }
-      if (res.statusCode !== 200) {
-        console.log(`[CRAWL] ${exhibitionId} returned status ${res.statusCode}`);
-        resolve(null);
-        res.resume();
-        return;
-      }
-
-      let html = '';
-      res.on('data', (chunk) => { html += chunk; });
-      res.on('end', () => {
-        // 1. Try <title> tag
-        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-        if (titleMatch) {
-          let title = titleMatch[1]
-            .replace(/\s*[|:\-]\s*(LFmall|엘에프몰|LF몰|LFMALL|lf몰|LFmall\.com)\s*$/gi, '')
-            .replace(/\s*[|:\-]\s*나를 나답게.*$/gi, '')
-            .trim();
-          
-          // Reject generic SPA default titles
-          const isGeneric = /^(LFmall|엘에프몰|LF몰|LFMALL|home|홈|main|메인)$/i.test(title) ||
-                            title.includes('나를 나답게 LFmall') ||
-                            title === 'LFmall.com';
-                            
-          if (title && title.length > 1 && !isGeneric) {
-            console.log(`[CRAWL] ${exhibitionId} → title: "${title}"`);
-            resolve(title);
-            return;
-          }
-        }
-
-        // 2. Try og:title meta tag
-        const ogMatch = html.match(/<meta\s+(?:property="og:title"\s+content="([^"]+)"|content="([^"]+)"\s+property="og:title")/i);
-        if (ogMatch) {
-          let title = (ogMatch[1] || ogMatch[2])
-            .replace(/\s*[|:\-]\s*(LFmall|엘에프몰|LF몰|LFMALL|lf몰)\s*$/gi, '')
-            .trim();
-            
-          const isGeneric = /^(LFmall|엘에프몰|LF몰|LFMALL|home|홈|main|메인)$/i.test(title) ||
-                            title.includes('나를 나답게 LFmall') ||
-                            title === 'LFmall.com';
-                            
-          if (title && title.length > 1 && !isGeneric) {
-            console.log(`[CRAWL] ${exhibitionId} → og:title: "${title}"`);
-            resolve(title);
-            return;
-          }
-        }
-
-        console.log(`[CRAWL] ${exhibitionId} → could not extract title from page`);
-        resolve(null);
-      });
-    });
-
-    req.on('error', (e) => {
-      console.warn(`[CRAWL-ERROR] ${exhibitionId}:`, e.message);
-      resolve(null);
-    });
-    req.on('timeout', () => {
-      console.warn(`[CRAWL-TIMEOUT] ${exhibitionId}`);
-      req.destroy();
-      resolve(null);
-    });
-    req.end();
-  });
-}
-
-// Cached title resolver: crawl once, cache in Redis forever
-async function getVerifiedExhibitionTitle(exhibitionId) {
-  // 1. Check in-memory cache
-  if (crawledTitleCache[exhibitionId]) return crawledTitleCache[exhibitionId];
-  
-  // 2. Check Redis cache
-  const cached = await redisGet(`lfmall:verified_title_v2:${exhibitionId}`);
-  if (cached) {
-    crawledTitleCache[exhibitionId] = cached;
-    return cached;
-  }
-  
-  // 3. Crawl the actual LFmall page
-  const title = await crawlExhibitionTitle(exhibitionId);
-  if (title) {
-    crawledTitleCache[exhibitionId] = title;
-    await redisSet(`lfmall:verified_title_v2:${exhibitionId}`, title);
-    return title;
-  }
-  
-  return null;
-}
-
 // --- HELPER FUNCTION: EXTRACT EXHIBITION ID FROM URL ---
 function extractExhibitionId(urlPath) {
   if (!urlPath || typeof urlPath !== 'string') return null;
@@ -377,12 +257,6 @@ app.post('/api/collect', async (req, res) => {
   let exhibitionId = extra?.exhibitionId || extractExhibitionId(finalUrl);
   const safeExtra = extra || {};
 
-  // Normalize titles
-  if (exhibitionId === '106251') {
-    safeExtra.exhibitionTitle = '(더캐리) 더캐리 패밀리 임직원 시크릿 특가전';
-  } else if (safeExtra.exhibitionTitle && (safeExtra.exhibitionTitle.includes("LFmall.com") || safeExtra.exhibitionTitle.includes("나를 나답게") || safeExtra.exhibitionTitle.includes("닥스 여성"))) {
-    safeExtra.exhibitionTitle = `기획전 캠페인_${exhibitionId}`;
-  }
 
   // Load metadata and attributions
   const metadata = await fetchMetadata();
@@ -390,32 +264,57 @@ app.post('/api/collect', async (req, res) => {
 
   // If we see a new exhibition or need to update title
   if (exhibitionId) {
-    // 1. Fetch the real title using the server-side crawler (cached)
-    let verifiedTitle = await getVerifiedExhibitionTitle(exhibitionId);
+    // Check if the current incoming client title is a generic SPA layout placeholder
+    const isCorruptedOrGeneric = (title) => {
+      if (!title || typeof title !== 'string') return true;
+      const t = title.trim();
+      return t === '' || 
+             t.includes('나를 나답게') || 
+             t.includes('LFmall.com') || 
+             t === 'LFmall' || 
+             t === '엘에프몰' || 
+             /^(LFmall|엘에프몰|LF몰|LFMALL|home|홈|main|메인)$/i.test(t);
+    };
 
-    if (verifiedTitle) {
-      safeExtra.exhibitionTitle = verifiedTitle;
-    } else if (!safeExtra.exhibitionTitle) {
-      safeExtra.exhibitionTitle = metadata[exhibitionId]?.title || `기획전 캠페인_${exhibitionId}`;
+    // 1. Process client-provided title
+    let incomingTitle = safeExtra.exhibitionTitle;
+    if (exhibitionId === '106251') {
+      incomingTitle = '(더캐리) 더캐리 패밀리 임직원 시크릿 특가전';
     }
 
-    const brandMatch = safeExtra.exhibitionTitle.match(/\(([^)]+)\)/);
+    // 2. Decide the final display title
+    let finalTitle = `기획전 캠페인_${exhibitionId}`;
+    
+    // Check what is already stored
+    const existing = metadata[exhibitionId];
+    const isExistingValid = existing && !isCorruptedOrGeneric(existing.title);
+
+    if (isExistingValid) {
+      // If we already have a valid title stored, keep it forever (First-Write-Wins / Persistent)
+      finalTitle = existing.title;
+    } else if (!isCorruptedOrGeneric(incomingTitle)) {
+      // If nothing valid is stored, but the incoming title is valid, use it!
+      finalTitle = incomingTitle.trim();
+    } else if (existing && existing.title) {
+      // If incoming title is invalid, but we have some existing non-corrupted title (even if placeholder), reuse it
+      finalTitle = existing.title;
+    }
+
+    // Extract brand from final title
+    const brandMatch = finalTitle.match(/\(([^)]+)\)/);
     const brand = brandMatch ? brandMatch[1] : 'LF MALL';
-    
-    // 2. Self-healing: if the current safeExtra title is corrupted, or if the stored metadata is corrupted, fix it
-    const isCorrupted = (title) => title && (title.includes('나를 나답게') || title.includes('LFmall.com') || title === 'LFmall');
-    
-    if (isCorrupted(safeExtra.exhibitionTitle)) {
-      safeExtra.exhibitionTitle = `기획전 캠페인_${exhibitionId}`;
-    }
-    
-    const isStoredCorrupted = metadata[exhibitionId] && isCorrupted(metadata[exhibitionId].title);
-    
-    // 3. Force update metadata if we have a new verified title, if it's completely missing, or if stored is corrupted
-    if ((verifiedTitle && metadata[exhibitionId]?.title !== verifiedTitle) || !metadata[exhibitionId] || isStoredCorrupted) {
-      metadata[exhibitionId] = { id: exhibitionId, title: safeExtra.exhibitionTitle, brand };
+
+    // Update metadata if it is completely missing, or if the stored title was corrupted and we can now fix it/set a correct placeholder, or if it changed to a valid one
+    const isStoredCorrupted = !existing || isCorruptedOrGeneric(existing.title);
+    const isValidIncomingAvailable = !isCorruptedOrGeneric(incomingTitle);
+
+    if (!existing || isStoredCorrupted || (isValidIncomingAvailable && existing.title !== finalTitle)) {
+      metadata[exhibitionId] = { id: exhibitionId, title: finalTitle, brand };
       await saveMetadata(metadata);
     }
+
+    // Update the local variable so downstream metrics get the correct clean title
+    safeExtra.exhibitionTitle = finalTitle;
     
     if (finalType === 'PAGE_VIEW') {
       attributions[finalSessionId] = exhibitionId;
