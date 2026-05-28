@@ -125,10 +125,11 @@ The data flow operates as an optimized, lightweight real-time telemetry model wi
      - Prevent title corruption (e.g. from downstream product details or generic lag pages).
      - Allows dynamic updates for generic placeholder strings (like `"기획전 캠페인"`, `"LFmall"`), but locks down the campaign name once a valid, concrete title is identified (Permanent Title Lock).
      - Hardcoding-based rules for specific campaign titles are strictly forbidden. All resolves must happen logically.
-   - **7-Day Touchpoint Matching Model (`campaignAttributionResolver.js`)**:
-     - Attributes purchase revenue to the correct campaign by retroactively matching purchase events (`PURCHASE`) against the user's (`userId` or `sessionId`) action logs within a 7-day time window.
-     - Scans the history buffer (up to 2,000 recent logs) to check if the user had visited the campaign's `PRODUCT_DETAIL` page for that specific product before buying.
-     - Avoids losing attribution when users leave active sessions to login, checkout, or cart-view pages.
+   - **7-Day 2-Strategy Attribution Engine (`campaignAttributionResolver.js`)**:
+     - **⚠️ GTM 핵심 제약**: `exhibitionId`는 기획전 페이지(`CATEGORY`)에서만 전송됨. 상품/장바구니/결제/주문완료 페이지에서는 빈 값.
+     - **[전략 1] 상품 레벨 정밀 매칭**: PURCHASE의 `productId` + 동일 userId + 기획전 컨텍스트(`exhibitionId` 보유 PAGE_VIEW) 역추적.
+     - **[전략 2] 기획전 터치포인트 폴백**: 전략 1 실패 시, 동일 유저의 최근 7일 이내 기획전 방문(Last-Touch Exhibition) 귀속.
+     - Scans the history buffer (up to 2,000 recent logs) in descending chronological order.
 
 ### 2. 🗄️ Database Location & Sharded Storage Engine
 - **Cloud Database Engine**: High-performance, highly available cloud-hosted Key-Value storage API powered by **kvdb.io**.
@@ -150,4 +151,14 @@ The data flow operates as an optimized, lightweight real-time telemetry model wi
   - If database wipe is triggered via `/api/reset`, the system must NOT inject any fake seed data or mock history.
   - The system must reset the database to an absolute zero-state (Empty structures `{}`) and only accumulate real-time visitor actions to ensure 100% telemetry data integrity.
 - **Attribution Compute Model**:
-  - The `/api/stats?startDate=...&endDate=...` endpoint delegates processing to `campaignAttributionResolver.js` for retroactive 7-day touchpoint matching and `campaignTitleResolver.js` for clean locked metadata, guaranteeing 100% stable, non-fluctuating figures on F5 refresh.
+  - The `/api/stats?startDate=...&endDate=...` endpoint delegates processing to `campaignAttributionResolver.js` for retroactive 7-day 2-strategy touchpoint matching and `campaignTitleResolver.js` for clean locked metadata, guaranteeing 100% stable, non-fluctuating figures on F5 refresh.
+
+### 4. 📡 GTM 태그 스크립트 교차 검증 기준 (Cross-Validation Reference)
+- 아래 매핑은 실제 LFmall GTM 컨테이너에 등록된 태그의 데이터 흐름을 명세합니다. 텔레메트리 파이프라인 수정 시 **반드시 교차 검증** 필수.
+- **이벤트 타입**: `page_view`/`view_item`/`gtm.js`/`gtm.dom`/`gtm.historyChange` → `PAGE_VIEW` | `add_to_cart` → `ADD_TO_CART` | `purchase` → `PURCHASE` | `gtm.click`/`click` → `CLICK`
+- **페이지 타입**: `/` → `HOME` | `/exhibitions/`,`/planning.do`,`/app/event/` → `CATEGORY` | `/product/` → `PRODUCT_DETAIL` | `/cart` → `CART` | `/order/payment` → `CHECKOUT` | `/order/complete` → `PURCHASE` | 기타 → `COMMON`
+- **기획전 ID 추출**: `CATEGORY` 페이지에서만 (`/exhibitions/<id>`, `datacls=<id>`, `/app/event/<id>`)
+- **이커머스 데이터**: `ecommerceData.items[0].item_id` → `extra.productId` | `ecommerceData.value` → `extra.revenue` | `ecommerceData.transaction_id` → `extra.orderId`
+- **유저 식별**: 쿠키 `lf_telemetry_uid`(1년) → `userId` | 쿠키 `lf_telemetry_sid`(1일) → `sessionId`
+- **전송**: `sendBeacon` + Blob `application/json` | XHR fallback → `POST /api/collect`
+

@@ -134,9 +134,20 @@ AI 에이전트가 데이터나 파이프라인 수정을 진행할 때는 아�
 *   **[규칙 15] 상태 감지 기반 기획전명 수집 및 영구 락(Lock) 엔진 탑재 (`campaignTitleResolver.js`) (CRITICAL)**:
     - 기획전 상세 진입 시점에 GTM을 통해 임시 타이틀(예: `"기획전 캠페인"`, `"LFmall"`, `"브랜드"` 등 유의미하지 않은 플레이스홀더 명칭)이 먼저 수집될 수 있으므로, 진짜 의미 있는 기획전명이 유입될 때 동적으로 덮어씁니다.
     - 이후 상품 상세 화면으로 유저가 이동하면서 기획전 타이틀 영역이 특정 상품명(예: `"바쉬, 바이올렛 단색 니트베스트"`)으로 오염되는 것을 완벽하게 방지하기 위해, 한 번 의미 있는 진짜 기획전명으로 확정된 명칭은 **영구 락(Lock)** 처리하여 오염 데이터를 원천 차단하고 정합성을 유지해야 합니다.
-*   **[규칙 16] 7일 타임윈도우 터치포인트 매칭 기반 기여 매출 산출 엔진 탑재 (`campaignAttributionResolver.js`) (CRITICAL)**:
-    - 단순 세션 브라우저 기록에만 의존할 경우, 사용자가 장바구니/체크아웃 페이지로 이동하면서 Attribution 세션이 지워지거나 오염되어 기여 매출액이 `0`으로 유실되는 문제가 발생합니다.
-    - 이를 해결하기 위해 사용자가 최종 구매(`PURCHASE`)한 시점에, 해당 사용자(`userId` 또는 `sessionId`)가 **최근 7일 이내**에 동일한 상품을 특정 기획전 내에서 조회(`PRODUCT_DETAIL` 또는 `PAGE_VIEW`)했었는지를 수집된 이벤트 버퍼(최근 최대 2,000개 이력 버퍼 범위)에서 역추적(Retroactive Matching)하여 기여 매출 및 기여 주문수로 매핑하는 고성능 이커머스 최적화 어트리뷰션 모델을 상시 가동해야 합니다.
-
+*   **[규칙 16] 7일 타임윈도우 2단계 어트리뷰션 매칭 엔진 (`campaignAttributionResolver.js`) (CRITICAL)**:
+    - GTM 태그가 `exhibitionId`를 기획전 페이지(`CATEGORY`)에서만 전송하고, 상품 상세(`PRODUCT_DETAIL`), 장바구니(`CART`), 결제(`CHECKOUT`), 주문완료(`PURCHASE`) 페이지에서는 전송하지 않으므로, 기획전→상품→구매 전환 흐름에서 **이벤트 로그 이력 역추적(Retroactive Matching)**이 반드시 필요합니다.
+    - **[전략 1] 상품 레벨 정밀 매칭**: PURCHASE 이벤트의 `productId`와 동일한 상품을 기획전 컨텍스트(`exhibitionId` 보유)에서 조회한 PAGE_VIEW 이력을 7일 이내 버퍼에서 역추적합니다.
+    - **[전략 2] 기획전 터치포인트 폴백**: 전략 1 실패 시, 동일 유저의 최근 7일 이내 기획전 방문 이력(`exhibitionId` 보유 PAGE_VIEW)에서 Last-Touch Exhibition을 귀속합니다.
+    - 이벤트 버퍼는 최근 최대 2,000개 이력으로 유지되며, 시간순 내림차순 역추적 방식으로 O(n) 탐색합니다.
+*   **[규칙 17] GTM 태그 스크립트 교차 검증 기준 (CRITICAL - 반드시 참조)**:
+    - 아래는 실제 LFmall GTM 컨테이너에 등록된 태그 스크립트 원문입니다. 백엔드 수집 API(`/api/collect`), 어트리뷰션 모델(`campaignAttributionResolver.js`), 타이틀 리졸버(`campaignTitleResolver.js`) 등 모든 텔레메트리 파이프라인 코드를 수정할 때는 **반드시 이 태그 스크립트의 데이터 구조와 매핑을 교차 검증**해야 합니다.
+    - **이벤트 타입 매핑**: `page_view`/`view_item`/`gtm.js`/`gtm.dom`/`gtm.historyChange` → `PAGE_VIEW` | `add_to_cart` → `ADD_TO_CART` | `purchase` → `PURCHASE` | `gtm.click`/`click` → `CLICK`
+    - **페이지 타입 분류**: `/` → `HOME` | `/exhibitions/`, `/planning.do`, `/app/event/` → `CATEGORY` | `/product/` → `PRODUCT_DETAIL` | `/cart` → `CART` | `/order/payment` → `CHECKOUT` | `/order/complete` → `PURCHASE` | 기타 → `COMMON`
+    - **기획전 ID 추출**: `CATEGORY` 페이지에서만 추출 (Pattern: `/exhibitions/<id>`, `datacls=<id>`, `/app/event/<id>`)
+    - **이커머스 데이터**: `ecommerceData.items[0].item_id` → `extra.productId` | `ecommerceData.value` → `extra.revenue` | `ecommerceData.transaction_id` → `extra.orderId`
+    - **클릭 요소 식별**: `{{Click Classes}}` || `{{Click ID}}` || `{{Click Text}}` → `elementId`
+    - **사용자 식별**: 1년 유효 쿠키 `lf_telemetry_uid` → `userId` | 1일 유효 쿠키 `lf_telemetry_sid` → `sessionId`
+    - **전송 방식**: `navigator.sendBeacon` (우선) 또는 XHR fallback → `POST /api/collect` (Blob, `application/json`)
+    - **⚠️ 핵심 제약**: `exhibitionId`는 기획전 페이지(`CATEGORY`)에서만 전송됨. 상품 상세, 장바구니, 결제, 주문완료 페이지에서는 빈 값(`undefined`). 이 제약을 반드시 고려하여 어트리뷰션 로직을 설계할 것.
 
 
