@@ -650,6 +650,31 @@ app.get('/api/campaign-clicks', async (req, res) => {
   }
 });
 
+// [NEW] API: nxapi.lfmall.co.kr CORS 무력화용 만능 API 가비지 컬렉터
+app.all('/api/mock-nxapi/*', (req, res) => {
+  const MOCK_OMNI_DATA = {
+    result: { 
+      token: 'mock-token-value-12345', 
+      session: 'mock-session-12345',
+      status: '200',
+      data: { token: 'mock-token-value-12345' }
+    },
+    data: { 
+      token: 'mock-token-value-12345', 
+      session: 'mock-session-12345',
+      result: { token: 'mock-token-value-12345' }
+    },
+    token: 'mock-token-value-12345',
+    session: 'mock-session-12345',
+    code: '200',
+    status: '200',
+    message: 'SUCCESS'
+  };
+  
+  console.log(`[API-MOCK-PROXY] Bypassed CORS and served same-origin mock response for: ${req.url}`);
+  res.json(MOCK_OMNI_DATA);
+});
+
 // 3. Clear Database
 app.post('/api/reset', async (req, res) => {
   await ensureDbInitialized();

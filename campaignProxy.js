@@ -74,7 +74,7 @@ function cleanExhibitionHtml(html) {
 
   let cleaned = html;
 
-  // [HYBRID-INJECTION] 글로벌 자바스크립트 오류 무력화 가드 및 nxapi API Mocking 스크립트 복원
+  // [HYBRID-INJECTION] 글로벌 자바스크립트 오류 무력화 가드
   const securityScript = `
   <script>
     (function() {
@@ -83,74 +83,16 @@ function cleanExhibitionHtml(html) {
         console.warn('[SILENCED-JS-ERROR] Bypassed LFmall global script crash:', message);
         return true; // 에러 전파를 막아 빈 화면 정지 극복
       };
-
-      const MOCK_OMNI_DATA = {
-        result: { 
-          token: 'mock-token-value-12345', 
-          session: 'mock-session-12345',
-          status: '200',
-          data: { token: 'mock-token-value-12345' }
-        },
-        data: { 
-          token: 'mock-token-value-12345', 
-          session: 'mock-session-12345',
-          result: { token: 'mock-token-value-12345' }
-        },
-        token: 'mock-token-value-12345',
-        session: 'mock-session-12345',
-        code: '200',
-        status: '200',
-        message: 'SUCCESS'
-      };
-
-      // 2. fetch API 가로채기 및 모킹
-      const originalFetch = window.fetch;
-      window.fetch = function(input, init) {
-        const url = typeof input === 'string' ? input : (input?.url || '');
-        if (url.includes('nxapi.lfmall.co.kr')) {
-          console.log('[TELEMETRY-API-MOCK] Bypassed real network call and mocked response for:', url);
-          return Promise.resolve(new Response(JSON.stringify(MOCK_OMNI_DATA), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json; charset=utf-8' }
-          }));
-        }
-        return originalFetch.apply(this, arguments);
-      };
-
-      // 3. XMLHttpRequest API 가로채기 및 모킹
-      const originalOpen = XMLHttpRequest.prototype.open;
-      XMLHttpRequest.prototype.open = function(method, url) {
-        if (typeof url === 'string' && url.includes('nxapi.lfmall.co.kr')) {
-          this.isMocked = true;
-          this.mockedUrl = url;
-        }
-        return originalOpen.apply(this, arguments);
-      };
-      
-      const originalSend = XMLHttpRequest.prototype.send;
-      XMLHttpRequest.prototype.send = function() {
-        if (this.isMocked) {
-          console.log('[TELEMETRY-API-MOCK] Bypassed XMLHttpRequest for:', this.mockedUrl);
-          Object.defineProperty(this, 'readyState', { writable: true, value: 4 });
-          Object.defineProperty(this, 'status', { writable: true, value: 200 });
-          Object.defineProperty(this, 'responseText', { 
-            writable: true, 
-            value: JSON.stringify(MOCK_OMNI_DATA) 
-          });
-          setTimeout(() => {
-            if (typeof this.onreadystatechange === 'function') this.onreadystatechange();
-            if (typeof this.onload === 'function') this.onload();
-          }, 20);
-          return;
-        }
-        return originalSend.apply(this, arguments);
-      };
     })();
   </script>
   `;
 
   // <head> 태그 바로 뒤에 안전하게 글로벌 에러 실드 장착
   cleaned = cleaned.replace(/<head>/i, '<head>' + securityScript);
+
+  // [CRITICAL-STEAL] nxapi.lfmall.co.kr 도메인 자체를 우리 백엔드 로컬 API 경로로 텍스트 치환하여
+  // 자바스크립트가 브라우저 인증을 Same-Origin으로 태우고 CORS를 100% 무력화하도록 원천 탈취합니다.
+  cleaned = cleaned.replace(/https:\/\/nxapi\.lfmall\.co\.kr/gi, '/api/mock-nxapi');
 
   // 1. 상대경로 src/href를 LFmall 절대경로로 치환
   cleaned = cleaned.replace(/(src|href)\s*=\s*"\s*\/([^"\/][^"]*)"/gi, '$1="https://www.lfmall.co.kr/$2"');
