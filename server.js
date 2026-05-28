@@ -37,7 +37,57 @@ const DB_DIR = isServerless
   : path.join(__dirname, 'db_store');
 
 let useInMemoryFallback = false;
-const inMemoryDb = {}; // { 'YYYY-MM-DD': [events] }
+const inMemoryDb = {}; // Local memory cache
+
+// --- CLOUD DATABASE PERSISTENCE LAYER (kvdb.io) ---
+const KV_STORE_URL = 'https://kvdb.io/m9zWd6x5y7p3q2r8s1t5/lfmall_analytics_events';
+let globalEventsCache = null;
+
+async function getPersistentEvents() {
+  try {
+    const res = await fetch(KV_STORE_URL);
+    if (!res.ok) {
+      if (res.status === 404) return [];
+      throw new Error(`HTTP Error ${res.status}`);
+    }
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.warn("[PERSISTENCE-WARNING] Failed to fetch events from cloud database:", e.message);
+    return [];
+  }
+}
+
+async function savePersistentEvents(events) {
+  try {
+    await fetch(KV_STORE_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(events)
+    });
+    console.log(`[PERSISTENCE] Successfully synced ${events.length} events to cloud database.`);
+  } catch (e) {
+    console.warn("[PERSISTENCE-WARNING] Failed to sync events to cloud database:", e.message);
+  }
+}
+
+async function loadAllEvents() {
+  if (globalEventsCache) return globalEventsCache;
+
+  console.log("[PERSISTENCE] Fetching events from cloud database...");
+  let events = await getPersistentEvents();
+  
+  if (events.length === 0) {
+    console.log("[PERSISTENCE] Cloud database is empty. Pre-populating with 5-day historic seed data...");
+    events = seedServerDatabase();
+    await savePersistentEvents(events);
+  } else {
+    console.log(`[PERSISTENCE] Successfully restored ${events.length} historical events from cloud database!`);
+  }
+  
+  globalEventsCache = events;
+  return events;
+}
 
 try {
   if (!fs.existsSync(DB_DIR)) {
@@ -254,8 +304,8 @@ function seedServerDatabase() {
   return events;
 }
 
-// Initial seeding enabled to guarantee persistent rich history on cold starts
-seedServerDatabase();
+// Initial database caching load on server startup
+loadAllEvents().catch(err => console.error("Database startup cache preheat failed:", err));
 
 // --- HELPER FUNCTION: EXTRACT EXHIBITION ID FROM URL ---
 function extractExhibitionId(urlPath) {
@@ -338,94 +388,23 @@ app.post('/api/collect', async (req, res) => {
   const d = String(dateObj.getDate()).padStart(2, '0');
   const dateStr = `${y}-${m}-${d}`;
 
-  // Always dual-write to in-memory store as an active serverless safety net!
-  if (!inMemoryDb[dateStr]) inMemoryDb[dateStr] = [];
-  inMemoryDb[dateStr].push(newEvent);
+  // Push new event into persistent cloud cache
+  const events = await loadAllEvents();
+  events.push(newEvent);
+  globalEventsCache = events;
+  
+  // Asynchronously sync back to persistent cloud database to avoid blocking the client request
+  savePersistentEvents(events).catch(err => console.error("Cloud DB sync failed:", err));
 
-  // Upgrade database to ultra high-performance JSON Lines (JSONL) format
-  const filePath = path.join(DB_DIR, `events-${dateStr}.jsonl`);
-
-  try {
-    // High performance O(1) text append instead of reading/writing large JSON arrays
-    const rawLine = JSON.stringify(newEvent) + '\n';
-    await fs.promises.appendFile(filePath, rawLine, 'utf-8');
-    
-    console.log(`[INGESTION-JSONL] Appended event ${type} to file and memory: events-${dateStr}.jsonl`);
-    res.status(202).json({ success: true, message: 'Telemetry packet appended successfully.' });
-  } catch (err) {
-    console.warn("[INGESTION-WARNING] File system append failed. In-memory log holds backup.", err.message);
-    res.status(202).json({ success: true, message: 'Telemetry packet logged to in-memory backup.' });
-  }
+  res.status(202).json({ success: true, message: 'Telemetry packet appended and synced successfully.' });
 });
 
 // 2. Get Exhibition-Focused Aggregated Statistics (Last-Touch Attribution Worker)
 app.get('/api/stats', async (req, res) => {
   const { startDate, endDate } = req.query;
   
-  // 1. Identify relevant sharded query date files
-  const dateList = [];
-  if (startDate && endDate) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    let current = new Date(start.getTime());
-    let limit = 60; // Safety boundary
-    while (current <= end && limit > 0) {
-      const y = current.getFullYear();
-      const m = String(current.getMonth() + 1).padStart(2, '0');
-      const d = String(current.getDate()).padStart(2, '0');
-      dateList.push(`${y}-${m}-${d}`);
-      current.setDate(current.getDate() + 1);
-      limit--;
-    }
-  }
-
-  // 2. Read only the sharded files in the query window (Merging File + Memory Backup Concurrently)
-  let events = [];
-  try {
-    for (const dateStr of dateList) {
-      let segmentEvents = [];
-      
-      // A. Attempt to read from high-performance JSONL sharding
-      const filePath = path.join(DB_DIR, `events-${dateStr}.jsonl`);
-      if (fs.existsSync(filePath)) {
-        try {
-          const content = await fs.promises.readFile(filePath, 'utf-8');
-          // Parse lines safely
-          const lines = content.split('\n');
-          for (const line of lines) {
-            if (line.trim()) {
-              segmentEvents.push(JSON.parse(line));
-            }
-          }
-        } catch(e) {
-          console.warn(`[STATS-READ-JSONL-FAIL] Failed reading segment events-${dateStr}.jsonl`, e.message);
-        }
-      }
-
-      // B. Fetch and merge in-memory logs to prevent any gaps
-      if (inMemoryDb[dateStr] && inMemoryDb[dateStr].length > 0) {
-        // Prevent duplication: check unique fingerprints (combination of timestamp + userId + type + url)
-        const existingFingerprints = new Set(segmentEvents.map(e => `${e.timestamp}_${e.userId}_${e.type}_${e.url}`));
-        
-        inMemoryDb[dateStr].forEach(memEvent => {
-          const fingerprint = `${memEvent.timestamp}_${memEvent.userId}_${memEvent.type}_${memEvent.url}`;
-          if (!existingFingerprints.has(fingerprint)) {
-            segmentEvents.push(memEvent);
-          }
-        });
-      }
-
-      events = events.concat(segmentEvents);
-    }
-  } catch (err) {
-    console.warn("[STATS-WARNING] Unified database retrieval encountered issues. Falling back to absolute in-memory query...", err.message);
-    events = [];
-    for (const dateStr of dateList) {
-      if (inMemoryDb[dateStr]) {
-        events = events.concat(inMemoryDb[dateStr]);
-      }
-    }
-  }
+  // Load unified events from persistent cloud store
+  const events = await loadAllEvents();
   
   // --- DAILY PERFORMANCE CALCULATION ---
   const dailyStatsMap = {};
@@ -655,36 +634,15 @@ app.get('/api/stats', async (req, res) => {
 });
 
 // 3. Clear Database
-app.post('/api/reset', (req, res) => {
+app.post('/api/reset', async (req, res) => {
   try {
-    // 1. Wipe in-memory store
-    for (const key of Object.keys(inMemoryDb)) {
-      delete inMemoryDb[key];
-    }
-    
-    // 2. Wipe physical files if directory exists and fallback is not forced
-    if (!useInMemoryFallback && fs.existsSync(DB_DIR)) {
-      const files = fs.readdirSync(DB_DIR);
-      for (const file of files) {
-        if (file.endsWith('.jsonl')) {
-          fs.unlinkSync(path.join(DB_DIR, file));
-        }
-      }
-      console.log('[RESET] Wiped existing sharded database files.');
-    }
-    
-    res.json({ success: true, message: 'Database reset successfully. Operating on a clean slate.' });
+    globalEventsCache = [];
+    await savePersistentEvents([]);
+    console.log('[RESET] Wiped cloud database successfully.');
+    res.json({ success: true, message: 'Database reset successfully on cloud store.' });
   } catch (err) {
-    console.warn("[RESET-WARNING] Failed to reset database files, resetting in-memory fallback store instead:", err.message);
-    try {
-      for (const key of Object.keys(inMemoryDb)) {
-        delete inMemoryDb[key];
-      }
-      useInMemoryFallback = true;
-      res.json({ success: true, message: 'Database reset successfully on fallback in-memory store.' });
-    } catch (fallbackErr) {
-      res.status(500).json({ success: false, message: 'Failed to reset database.' });
-    }
+    console.warn("[RESET-WARNING] Failed to reset cloud database:", err.message);
+    res.status(500).json({ success: false, message: 'Failed to reset database.' });
   }
 });
 
