@@ -284,9 +284,6 @@ app.post('/api/collect', async (req, res) => {
 
     // 1. Process client-provided title
     let incomingTitle = safeExtra.exhibitionTitle;
-    if (exhibitionId === '106251') {
-      incomingTitle = '(더캐리) 더캐리 패밀리 임직원 시크릿 특가전';
-    }
 
     // 2. Decide the final display title
     let finalTitle = '기획전 캠페인';
