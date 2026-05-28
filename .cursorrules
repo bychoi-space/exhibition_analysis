@@ -103,3 +103,42 @@ You must define these custom CSS variables in `style.css` and use them exclusive
 - **Header Uniformity**: Enforce standard `min-height` on text headers inside card components (like `min-height: 38px` on `.stat-header`) to align main metrics vertically.
 - **Bottom Metric Pinning**: Always pin comparative indicators (e.g. YoY / MoM changes) to the absolute bottom of flex-based grid cards using `margin-top: auto`. This guarantees flawless visual alignment regardless of title lengths or font-size adjustments.
 - **Always QA for Text Wrapping**: Before committing, verify if text elements wrap dynamically under different view modes (e.g., "Daily Avg" vs "Cumulative") and ensure it does not break row alignments.
+
+## 💾 Database Architecture & Serverless Persistence Guide
+
+### 1. Database Location & Storage Engine
+- **Cloud Database Engine**: High-performance, highly available cloud-hosted Key-Value storage API powered by **kvdb.io**.
+- **Secure Endpoint URL**: `https://kvdb.io/m9zWd6x5y7p3q2r8s1t5/lfmall_analytics_events`
+- **Scope**: Serves as the primary production-grade persistence layer, keeping all campaign logs alive permanently across Vercel cold starts, server idle states, and deployment overrides.
+
+### 2. Telemetry Log Data Schema / Format
+The database stores a flat, unified JSON array of user telemetry actions. Every event object must adhere strictly to the following structure:
+```typescript
+interface TelemetryEvent {
+  timestamp: number;                  // Millisecond UNIX timestamp (e.g., 1716880112345)
+  type: 'PAGE_VIEW' | 'CLICK' | 'ADD_TO_CART' | 'PURCHASE';
+  pageType: 'HOME' | 'CATEGORY' | 'PRODUCT_DETAIL' | 'CART' | 'CHECKOUT' | 'PURCHASE' | 'COMMON';
+  url: string;                       // Request URL path (e.g., "/app/event/103291")
+  sessionId: string;                 // Client session tracker UUID
+  userId: string;                    // Client cookie tracking ID
+  elementId?: string;                // Element ID for CLICK actions (e.g., "download-coupon-btn")
+  extra?: {
+    exhibitionId?: string;           // Extracted/Attributed Campaign ID
+    exhibitionTitle?: string;        // Extracted/Attributed Campaign Title
+    productId?: string;              // Product ID for cart/detail actions
+    price?: number;                  // Single item price in KRW
+    revenue?: number;                // Attributed transaction revenue in KRW
+    orderId?: string;                // E-commerce purchase transaction ID
+    attributedExhibitionId?: string; // Last-Touch Attributed Campaign ID for purchases
+  }
+}
+```
+
+### 3. Crucial Development & Maintenance Rules (Strictly Enforced)
+- **NO Local Disk Write Policies**: Do NOT write analytical logs to serverless local directories (like `db_store/` or `/tmp`) via `fs.appendFile` or `fs.writeFile` in production serverless environments. Any local writes will be permanently destroyed when Vercel scales down or redeploys.
+- **Hybrid In-Memory Caching Pattern (Performance)**:
+  - ALWAYS preheat and keep the `globalEventsCache` hot in `server.js`.
+  - **READ**: On `/api/stats`, return the memory cache `globalEventsCache` immediately to prevent gateway timeouts.
+  - **WRITE**: On `/api/collect`, append the new event into the `globalEventsCache` synchronously, then push the synced array to `KV_STORE_URL` asynchronously without `await` to maintain high API responsiveness.
+- **Self-Healing Fallback Seeding**: If the cloud database is wiped (e.g., via `/api/reset`) or returns an empty array, the server must automatically self-heal by calling `seedServerDatabase()` to restore a rich 5-day historic dataset, write it back to the cloud, and populate the memory cache.
+- **Attribution Compute Model**: All daily performance metrics, stay durations, clicks, and revenue metrics must be computed dynamically on-the-fly by parsing the entire chronological event list. Do not rely on static predefined databases.
