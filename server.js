@@ -93,18 +93,46 @@ function httpsPut(url, body) {
   });
 }
 
-// --- SHARDED DATABASE HELPERS ---
+// --- DUAL HYBRID STORAGE ENGINE HELPERS ---
+function writeLocalFile(filename, content) {
+  try {
+    const filePath = path.join(DB_DIR, filename);
+    fs.writeFileSync(filePath, JSON.stringify(content, null, 2));
+  } catch (err) {
+    console.error(`[LOCAL-DB] Failed to write file ${filename}:`, err.message);
+  }
+}
+
+function readLocalFile(filename, fallback) {
+  try {
+    const filePath = path.join(DB_DIR, filename);
+    if (fs.existsSync(filePath)) {
+      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    }
+  } catch (err) {
+    console.error(`[LOCAL-DB] Failed to read file ${filename}:`, err.message);
+  }
+  return fallback;
+}
+
 async function fetchMetadata() {
+  if (!isServerless) {
+    return readLocalFile('metadata.json', {});
+  }
   try {
     const data = await httpsGet(`${KV_BASE_URL}/metadata`);
     return (data && typeof data === 'object' && !Array.isArray(data)) ? data : {};
   } catch (e) {
-    console.warn("[PERSISTENCE] Failed to fetch metadata, falling back to local memory:", e.message);
+    console.warn("[PERSISTENCE] Failed to fetch metadata:", e.message);
     return {};
   }
 }
 
 async function saveMetadata(meta) {
+  if (!isServerless) {
+    writeLocalFile('metadata.json', meta);
+    return;
+  }
   try {
     await httpsPut(`${KV_BASE_URL}/metadata`, JSON.stringify(meta));
   } catch (e) {
@@ -113,6 +141,9 @@ async function saveMetadata(meta) {
 }
 
 async function fetchDailyStats(dateStr) {
+  if (!isServerless) {
+    return readLocalFile(`daily_stats_${dateStr}.json`, {});
+  }
   try {
     const data = await httpsGet(`${KV_BASE_URL}/daily_stats_${dateStr}`);
     return (data && typeof data === 'object' && !Array.isArray(data)) ? data : {};
@@ -123,6 +154,10 @@ async function fetchDailyStats(dateStr) {
 }
 
 async function saveDailyStats(dateStr, stats) {
+  if (!isServerless) {
+    writeLocalFile(`daily_stats_${dateStr}.json`, stats);
+    return;
+  }
   try {
     await httpsPut(`${KV_BASE_URL}/daily_stats_${dateStr}`, JSON.stringify(stats));
   } catch (e) {
@@ -131,6 +166,9 @@ async function saveDailyStats(dateStr, stats) {
 }
 
 async function fetchRecentLogs() {
+  if (!isServerless) {
+    return readLocalFile('recent_logs.json', []);
+  }
   try {
     const data = await httpsGet(`${KV_BASE_URL}/recent_logs`);
     return Array.isArray(data) ? data : [];
@@ -140,12 +178,20 @@ async function fetchRecentLogs() {
 }
 
 async function saveRecentLogs(logs) {
+  const trimmed = logs.slice(-25);
+  if (!isServerless) {
+    writeLocalFile('recent_logs.json', trimmed);
+    return;
+  }
   try {
-    await httpsPut(`${KV_BASE_URL}/recent_logs`, JSON.stringify(logs.slice(-25)));
+    await httpsPut(`${KV_BASE_URL}/recent_logs`, JSON.stringify(trimmed));
   } catch (e) {}
 }
 
 async function fetchSessionAttributions() {
+  if (!isServerless) {
+    return readLocalFile('session_attributions.json', {});
+  }
   try {
     const data = await httpsGet(`${KV_BASE_URL}/session_attributions`);
     return (data && typeof data === 'object' && !Array.isArray(data)) ? data : {};
@@ -155,15 +201,17 @@ async function fetchSessionAttributions() {
 }
 
 async function saveSessionAttributions(attributions) {
+  const keys = Object.keys(attributions);
+  const trimmed = keys.length > 200 
+    ? keys.slice(-200).reduce((acc, k) => { acc[k] = attributions[k]; return acc; }, {})
+    : attributions;
+
+  if (!isServerless) {
+    writeLocalFile('session_attributions.json', trimmed);
+    return;
+  }
   try {
-    const keys = Object.keys(attributions);
-    if (keys.length > 200) {
-      const trimmed = {};
-      keys.slice(-200).forEach(k => trimmed[k] = attributions[k]);
-      await httpsPut(`${KV_BASE_URL}/session_attributions`, JSON.stringify(trimmed));
-    } else {
-      await httpsPut(`${KV_BASE_URL}/session_attributions`, JSON.stringify(attributions));
-    }
+    await httpsPut(`${KV_BASE_URL}/session_attributions`, JSON.stringify(trimmed));
   } catch (e) {}
 }
 
