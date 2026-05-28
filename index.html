@@ -491,6 +491,16 @@
         try {
           const res = await fetch(`${apiBaseUrl}/api/stats?startDate=${startDate}&endDate=${endDate}`);
           const data = await res.json();
+          
+          // Debug telemetry payload directly in developer tools console
+          console.info("[TELEMETRY-DEBUG] Received stats from API server:", {
+            statusCode: res.status,
+            timestamp: new Date().toLocaleTimeString(),
+            statsCard: data.stats,
+            operatingCampaignCount: data.pages?.length,
+            samplePages: data.pages?.slice(0, 5).map(p => ({ id: p.id, title: p.title, brand: p.brand }))
+          });
+          
           setStats(data.stats);
           setFunnel(data.funnel);
           setPages(data.pages);
