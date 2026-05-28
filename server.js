@@ -246,18 +246,24 @@ async function seedServerDatabase() {
   console.log('[SEED] Deterministic seeding completed successfully.');
 }
 
-async function preheatDatabase() {
-  console.log("[PERSISTENCE] Preheating database cache and checking initialization...");
-  const meta = await fetchMetadata();
-  if (Object.keys(meta).length === 0) {
-    console.log("[PERSISTENCE] Master metadata is empty. Running deterministic historic seeder...");
-    await seedServerDatabase();
-  } else {
-    console.log(`[PERSISTENCE] Database is preheated with ${Object.keys(meta).length} master exhibition records.`);
-  }
-}
+let dbInitPromise = null;
 
-preheatDatabase().catch(err => console.error("Database preheat failed:", err));
+async function ensureDbInitialized() {
+  if (dbInitPromise) return dbInitPromise;
+  
+  dbInitPromise = (async () => {
+    console.log("[PERSISTENCE] Checking database initialization...");
+    const meta = await fetchMetadata();
+    if (Object.keys(meta).length === 0) {
+      console.log("[PERSISTENCE] Master metadata is empty. Seeding deterministic historic data...");
+      await seedServerDatabase();
+    } else {
+      console.log(`[PERSISTENCE] Database is already initialized with ${Object.keys(meta).length} master records.`);
+    }
+  })();
+  
+  return dbInitPromise;
+}
 
 // --- HELPER FUNCTION: EXTRACT EXHIBITION ID FROM URL ---
 function extractExhibitionId(urlPath) {
@@ -290,6 +296,7 @@ function extractExhibitionId(urlPath) {
 
 // 1. Data Ingestion Endpoint (Upgraded GTM telemetry tag calls this)
 app.post('/api/collect', async (req, res) => {
+  await ensureDbInitialized();
   const { timestamp, type, pageType, url, sessionId, userId, extra, elementId } = req.body || {};
   
   const finalType = type || 'PAGE_VIEW';
@@ -405,6 +412,7 @@ app.post('/api/collect', async (req, res) => {
 
 // 2. Get Exhibition-Focused Aggregated Statistics (Last-Touch Attribution Worker)
 app.get('/api/stats', async (req, res) => {
+  await ensureDbInitialized();
   const { startDate, endDate } = req.query;
   
   const metadata = await fetchMetadata();
@@ -601,6 +609,7 @@ app.get('/api/stats', async (req, res) => {
 
 // 3. Clear Database
 app.post('/api/reset', async (req, res) => {
+  await ensureDbInitialized();
   try {
     await saveMetadata({});
     await saveRecentLogs([]);
