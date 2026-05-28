@@ -178,6 +178,7 @@ const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, i
                   if (b.includes('JILL') || b.includes('질스튜어트') || b.includes('질바이')) return 'var(--colors-brand-lavender)';
                   if (b.includes('ATHE') || b.includes('아떼') || b.includes('바네사') || b.includes('앳코너')) return 'var(--colors-brand-ochre)';
                   if (b.includes('LUXURY') || b.includes('명품') || b.includes('이자벨') || b.includes('바버') || b.includes('레오나드')) return 'var(--colors-brand-coral)';
+                  if (b.includes('더캐리') || b.includes('CARRY') || b.includes('CARREY')) return 'var(--colors-brand-ochre)';
                   return 'var(--colors-brand-mint)';
                 };
 
@@ -243,6 +244,7 @@ const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, i
               if (b.includes('JILL') || b.includes('질스튜어트') || b.includes('질바이')) return 'var(--colors-brand-lavender)';
               if (b.includes('ATHE') || b.includes('아떼') || b.includes('바네사') || b.includes('앳코너')) return 'var(--colors-brand-ochre)';
               if (b.includes('LUXURY') || b.includes('명품') || b.includes('이자벨') || b.includes('바버') || b.includes('레오나드')) return 'var(--colors-brand-coral)';
+              if (b.includes('더캐리') || b.includes('CARRY') || b.includes('CARREY')) return 'var(--colors-brand-ochre)';
               return 'var(--colors-brand-mint)';
             };
 

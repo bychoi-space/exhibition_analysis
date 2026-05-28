@@ -106,18 +106,14 @@ function initializeMemoryStore() {
   console.log('[LOCAL-MEMORY] Initializing memory store with deterministic 5-day historic seed data...');
   
   memoryMetadata = {
-    "106251": { id: "106251", title: "(DAKS) [명품단독] 닥스 여성 서머 시즌 메가 베스트 기획전", brand: "DAKS" },
-    "111584": { id: "111584", title: "[OUTLET SHOES] 이달의 베스트 슈즈", brand: "LF MALL" },
-    "992831": { id: "992831", title: "(HAZZYS) [여름휴가] 헤지스 남성 린넨 셔츠 특가전", brand: "HAZZYS" },
-    "301": { id: "301", title: "(JILL BY JILLSTUART) 질바이질스튜어트 백팩 & 슈즈 기획전", brand: "JILL BY JILLSTUART" }
+    "106251": { id: "106251", title: "(더캐리) 더캐리 패밀리 임직원 시크릿 특가전", brand: "더캐리" },
+    "111584": { id: "111584", title: "[OUTLET SHOES] 이달의 베스트 슈즈", brand: "LF MALL" }
   };
   
   const dates = getPastDateStrings(5);
   const exhibitions = [
     { id: "106251", basePv: 250, baseUv: 180, baseClicks: 60, baseRev: 1800000, baseOrders: 5, avgStaySec: 42, bouncePct: 32 },
-    { id: "111584", basePv: 180, baseUv: 120, baseClicks: 35, baseRev: 980000, baseOrders: 3, avgStaySec: 35, bouncePct: 40 },
-    { id: "992831", basePv: 300, baseUv: 210, baseClicks: 80, baseRev: 2400000, baseOrders: 6, avgStaySec: 50, bouncePct: 25 },
-    { id: "301", basePv: 120, baseUv: 90, baseClicks: 25, baseRev: 640000, baseOrders: 2, avgStaySec: 28, bouncePct: 45 }
+    { id: "111584", basePv: 180, baseUv: 120, baseClicks: 35, baseRev: 980000, baseOrders: 3, avgStaySec: 35, bouncePct: 40 }
   ];
   
   for (let i = 0; i < dates.length; i++) {
@@ -312,12 +308,10 @@ app.post('/api/collect', async (req, res) => {
   const safeExtra = extra || {};
 
   // Normalize titles
-  if (safeExtra.exhibitionTitle && (safeExtra.exhibitionTitle.includes("LFmall.com") || safeExtra.exhibitionTitle.includes("나를 나답게"))) {
-    if (exhibitionId === '106251') {
-      safeExtra.exhibitionTitle = '(DAKS) [명품단독] 닥스 여성 서머 시즌 메가 베스트 기획전';
-    } else {
-      safeExtra.exhibitionTitle = `기획전 캠페인_${exhibitionId}`;
-    }
+  if (exhibitionId === '106251') {
+    safeExtra.exhibitionTitle = '(더캐리) 더캐리 패밀리 임직원 시크릿 특가전';
+  } else if (safeExtra.exhibitionTitle && (safeExtra.exhibitionTitle.includes("LFmall.com") || safeExtra.exhibitionTitle.includes("나를 나답게") || safeExtra.exhibitionTitle.includes("닥스 여성"))) {
+    safeExtra.exhibitionTitle = `기획전 캠페인_${exhibitionId}`;
   }
 
   // Load metadata and attributions
