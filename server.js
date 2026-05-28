@@ -290,16 +290,20 @@ app.post('/api/collect', async (req, res) => {
     
     // Check what is already stored
     const existing = metadata[exhibitionId];
-    const isExistingValid = existing && !isCorruptedOrGeneric(existing.title);
+    
+    // A stored title is only truly valid if it exists, is not generic, and is not the temporary "기획전 캠페인" placeholder.
+    const isExistingValid = existing && 
+                            !isCorruptedOrGeneric(existing.title) && 
+                            existing.title !== '기획전 캠페인';
 
     if (isExistingValid) {
-      // If we already have a valid title stored, keep it forever (First-Write-Wins / Persistent)
+      // If we already have a truly valid title stored, keep it forever (First-Write-Wins)
       finalTitle = existing.title;
     } else if (!isCorruptedOrGeneric(incomingTitle)) {
-      // If nothing valid is stored, but the incoming title is valid, use it!
+      // If nothing valid is stored, but the incoming GTM title is valid, write it!
       finalTitle = incomingTitle.trim();
     } else if (existing && existing.title) {
-      // If incoming title is invalid, but we have some existing non-corrupted title (even if placeholder), reuse it
+      // Otherwise, reuse whatever is already there
       finalTitle = existing.title;
     }
 
@@ -307,8 +311,9 @@ app.post('/api/collect', async (req, res) => {
     const brandMatch = finalTitle.match(/\(([^)]+)\)/);
     const brand = brandMatch ? brandMatch[1] : 'LF MALL';
 
-    // Update metadata if it is completely missing, or if the stored title was corrupted and we can now fix it/set a correct placeholder, or if it changed to a valid one
-    const isStoredCorrupted = !existing || isCorruptedOrGeneric(existing.title);
+    // Update metadata if it is missing, if the stored title is placeholder/corrupted, 
+    // or if we finally got a valid incoming title that differs from our current placeholder.
+    const isStoredCorrupted = !existing || isCorruptedOrGeneric(existing.title) || existing.title === '기획전 캠페인';
     const isValidIncomingAvailable = !isCorruptedOrGeneric(incomingTitle);
 
     if (!existing || isStoredCorrupted || (isValidIncomingAvailable && existing.title !== finalTitle)) {
