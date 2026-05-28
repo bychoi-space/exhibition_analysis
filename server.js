@@ -289,7 +289,7 @@ app.post('/api/collect', async (req, res) => {
     }
 
     // 2. Decide the final display title
-    let finalTitle = `기획전 캠페인_${exhibitionId}`;
+    let finalTitle = '기획전 캠페인';
     
     // Check what is already stored
     const existing = metadata[exhibitionId];
@@ -434,7 +434,7 @@ app.get('/api/stats', async (req, res) => {
     Object.keys(dailyStats).forEach(exId => {
       const sourceNode = dailyStats[exId];
       
-      const title = metadata[exId]?.title || `기획전 캠페인_${exId}`;
+      const title = metadata[exId]?.title || '기획전 캠페인';
       
       if (!consolidatedExStats[exId]) {
         consolidatedExStats[exId] = {
