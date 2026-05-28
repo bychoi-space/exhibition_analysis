@@ -42,7 +42,7 @@ let useInMemoryFallback = false;
 const inMemoryDb = {}; // Local memory cache
 
 // --- CLOUD DATABASE PERSISTENCE LAYER (kvdb.io via Native HTTPS) ---
-const KV_BASE_URL = 'https://kvdb.io/HGghZt26agFoWZJsQPVtcW';
+const KV_BASE_URL = 'https://kvdb.io/lf_mall_ex_stats_v99';
 
 function httpsGet(url) {
   return new Promise((resolve, reject) => {

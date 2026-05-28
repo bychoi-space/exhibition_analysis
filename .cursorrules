@@ -108,7 +108,7 @@ You must define these custom CSS variables in `style.css` and use them exclusive
 
 ### 1. Database Location & Storage Engine
 - **Cloud Database Engine**: High-performance, highly available cloud-hosted Key-Value storage API powered by **kvdb.io**.
-- **Secure Endpoint URL**: `https://kvdb.io/HGghZt26agFoWZJsQPVtcW/lfmall_analytics_events`
+- **Secure Endpoint URL**: `https://kvdb.io/lf_mall_ex_stats_v99/lfmall_analytics_events`
 - **Scope**: Serves as the primary production-grade persistence layer, keeping all campaign logs alive permanently across Vercel cold starts, server idle states, and deployment overrides.
 
 ### 2. Telemetry Log Data Schema / Format
