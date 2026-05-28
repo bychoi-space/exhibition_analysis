@@ -755,8 +755,9 @@ h1, h2, h3, h4, h5, h6 {
 .stat-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   color: var(--colors-muted);
+  min-height: 38px;
 }
 
 .stat-value {

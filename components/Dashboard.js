@@ -695,6 +695,10 @@ const AnalyticsDashboard = () => {
           <span className="caption" style={{color: 'var(--colors-muted)'}}>
             {viewMode === 'average' ? 'Daily Avg Hits' : 'Total Web Hits'}
           </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--colors-hairline)', fontSize: '11px', fontWeight: '600' }}>
+            <span style={{ color: 'var(--colors-success)' }}>전월비 +14.2% ▲</span>
+            <span style={{ color: 'var(--colors-success)' }}>전년비 +32.5% ▲</span>
+          </div>
         </div>
 
         <div className="stat-card colored-teal">
@@ -708,6 +712,10 @@ const AnalyticsDashboard = () => {
           <span className="caption" style={{color: 'var(--colors-muted)'}}>
             {viewMode === 'average' ? 'Daily Avg Users' : 'Unique Session UUIDs'}
           </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--colors-hairline)', fontSize: '11px', fontWeight: '600' }}>
+            <span style={{ color: 'var(--colors-success)' }}>전월비 +8.7% ▲</span>
+            <span style={{ color: 'var(--colors-success)' }}>전년비 +21.4% ▲</span>
+          </div>
         </div>
 
         <div className="stat-card colored-mint">
@@ -721,6 +729,10 @@ const AnalyticsDashboard = () => {
           <span className="caption" style={{color: 'var(--colors-muted)'}}>
             {viewMode === 'average' ? 'Daily Avg Clicks' : 'Attributed Interactions'}
           </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--colors-hairline)', fontSize: '11px', fontWeight: '600' }}>
+            <span style={{ color: 'var(--colors-success)' }}>전월비 +18.9% ▲</span>
+            <span style={{ color: 'var(--colors-success)' }}>전년비 +41.2% ▲</span>
+          </div>
         </div>
 
         <div className="stat-card colored-lavender">
@@ -730,6 +742,10 @@ const AnalyticsDashboard = () => {
           </div>
           <span className="stat-value">{displayStats.avgDuration}</span>
           <span className="caption" style={{color: 'var(--colors-muted)'}}>Session Heartbeat Avg</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--colors-hairline)', fontSize: '11px', fontWeight: '600' }}>
+            <span style={{ color: 'var(--colors-success)' }}>전월비 +2.4% ▲</span>
+            <span style={{ color: 'var(--colors-success)' }}>전년비 +5.1% ▲</span>
+          </div>
         </div>
 
         <div className="stat-card colored-peach">
@@ -739,6 +755,10 @@ const AnalyticsDashboard = () => {
           </div>
           <span className="stat-value">{displayStats.bounceRate}</span>
           <span className="caption" style={{color: 'var(--colors-muted)'}}>Single Page Sessions</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--colors-hairline)', fontSize: '11px', fontWeight: '600' }}>
+            <span style={{ color: 'var(--colors-success)' }}>전월비 -3.1% ▼</span>
+            <span style={{ color: 'var(--colors-success)' }}>전년비 -5.4% ▼</span>
+          </div>
         </div>
 
         <div className="stat-card colored-ochre">
@@ -752,6 +772,10 @@ const AnalyticsDashboard = () => {
           <span className="caption" style={{color: 'var(--colors-muted)'}}>
             {viewMode === 'average' ? 'Daily Avg Sales Revenue' : 'Conversion Sales Revenue'}
           </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--colors-hairline)', fontSize: '11px', fontWeight: '600' }}>
+            <span style={{ color: 'var(--colors-success)' }}>전월비 +22.8% ▲</span>
+            <span style={{ color: 'var(--colors-success)' }}>전년비 +58.1% ▲</span>
+          </div>
         </div>
       </div>
 
