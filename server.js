@@ -212,6 +212,115 @@ async function seedServerDatabase() {
   console.log('[RESET] All data cleared from memory and Redis.');
 }
 
+// --- SERVER-SIDE EXHIBITION TITLE CRAWLER ---
+// Fetches the real exhibition title directly from LFmall pages.
+// Client-provided titles are unreliable because they may contain product names
+// when users view products within an exhibition context.
+
+const crawledTitleCache = {}; // In-memory cache for crawled titles
+
+function crawlExhibitionTitle(exhibitionId) {
+  return new Promise((resolve) => {
+    const targetUrl = `https://www.lfmall.co.kr/app/event/${exhibitionId}`;
+    const options = {
+      hostname: 'www.lfmall.co.kr',
+      path: `/app/event/${exhibitionId}`,
+      method: 'GET',
+      port: 443,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'ko-KR,ko;q=0.9'
+      },
+      timeout: 8000
+    };
+
+    const req = https.request(options, (res) => {
+      // Follow redirects (one level)
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        console.log(`[CRAWL] ${exhibitionId} redirected → exhibition may not exist`);
+        resolve(null);
+        res.resume();
+        return;
+      }
+      if (res.statusCode !== 200) {
+        console.log(`[CRAWL] ${exhibitionId} returned status ${res.statusCode}`);
+        resolve(null);
+        res.resume();
+        return;
+      }
+
+      let html = '';
+      res.on('data', (chunk) => { html += chunk; });
+      res.on('end', () => {
+        // 1. Try <title> tag
+        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        if (titleMatch) {
+          let title = titleMatch[1]
+            .replace(/\s*[|:\-]\s*(LFmall|엘에프몰|LF몰|LFMALL|lf몰|LFmall\.com)\s*$/gi, '')
+            .replace(/\s*[|:\-]\s*나를 나답게.*$/gi, '')
+            .trim();
+          if (title && title.length > 1 && !/^(LFmall|엘에프몰|LF몰|LFMALL|home|홈|main|메인)$/i.test(title)) {
+            console.log(`[CRAWL] ${exhibitionId} → title: "${title}"`);
+            resolve(title);
+            return;
+          }
+        }
+
+        // 2. Try og:title meta tag
+        const ogMatch = html.match(/<meta\s+(?:property="og:title"\s+content="([^"]+)"|content="([^"]+)"\s+property="og:title")/i);
+        if (ogMatch) {
+          let title = (ogMatch[1] || ogMatch[2])
+            .replace(/\s*[|:\-]\s*(LFmall|엘에프몰|LF몰|LFMALL|lf몰)\s*$/gi, '')
+            .trim();
+          if (title && title.length > 1 && !/^(LFmall|엘에프몰|LF몰|LFMALL)$/i.test(title)) {
+            console.log(`[CRAWL] ${exhibitionId} → og:title: "${title}"`);
+            resolve(title);
+            return;
+          }
+        }
+
+        console.log(`[CRAWL] ${exhibitionId} → could not extract title from page`);
+        resolve(null);
+      });
+    });
+
+    req.on('error', (e) => {
+      console.warn(`[CRAWL-ERROR] ${exhibitionId}:`, e.message);
+      resolve(null);
+    });
+    req.on('timeout', () => {
+      console.warn(`[CRAWL-TIMEOUT] ${exhibitionId}`);
+      req.destroy();
+      resolve(null);
+    });
+    req.end();
+  });
+}
+
+// Cached title resolver: crawl once, cache in Redis forever
+async function getVerifiedExhibitionTitle(exhibitionId) {
+  // 1. Check in-memory cache
+  if (crawledTitleCache[exhibitionId]) return crawledTitleCache[exhibitionId];
+  
+  // 2. Check Redis cache
+  const cached = await redisGet(`lfmall:verified_title:${exhibitionId}`);
+  if (cached) {
+    crawledTitleCache[exhibitionId] = cached;
+    return cached;
+  }
+  
+  // 3. Crawl the actual LFmall page
+  const title = await crawlExhibitionTitle(exhibitionId);
+  if (title) {
+    crawledTitleCache[exhibitionId] = title;
+    await redisSet(`lfmall:verified_title:${exhibitionId}`, title);
+    return title;
+  }
+  
+  return null;
+}
+
 // --- HELPER FUNCTION: EXTRACT EXHIBITION ID FROM URL ---
 function extractExhibitionId(urlPath) {
   if (!urlPath || typeof urlPath !== 'string') return null;
@@ -270,21 +379,22 @@ app.post('/api/collect', async (req, res) => {
 
   // If we see a new exhibition or need to update title
   if (exhibitionId) {
-    if (!safeExtra.exhibitionTitle) {
+    // 1. Fetch the real title using the server-side crawler (cached)
+    let verifiedTitle = await getVerifiedExhibitionTitle(exhibitionId);
+
+    if (verifiedTitle) {
+      safeExtra.exhibitionTitle = verifiedTitle;
+    } else if (!safeExtra.exhibitionTitle) {
       safeExtra.exhibitionTitle = metadata[exhibitionId]?.title || `기획전 캠페인_${exhibitionId}`;
     }
+
     const brandMatch = safeExtra.exhibitionTitle.match(/\(([^)]+)\)/);
     const brand = brandMatch ? brandMatch[1] : 'LF MALL';
     
-    if (!metadata[exhibitionId] || 
-        metadata[exhibitionId].title.includes("LFmall.com") || 
-        metadata[exhibitionId].title.includes("나를 나답게") ||
-        metadata[exhibitionId].title.startsWith("기획전 캠페인_")) {
-      // Only update if incoming title is NOT a fallback name itself
-      if (!safeExtra.exhibitionTitle.startsWith("기획전 캠페인_") || !metadata[exhibitionId]) {
-        metadata[exhibitionId] = { id: exhibitionId, title: safeExtra.exhibitionTitle, brand };
-        await saveMetadata(metadata);
-      }
+    // 2. Force update metadata if we have a new verified title or if it's completely missing
+    if ((verifiedTitle && metadata[exhibitionId]?.title !== verifiedTitle) || !metadata[exhibitionId]) {
+      metadata[exhibitionId] = { id: exhibitionId, title: safeExtra.exhibitionTitle, brand };
+      await saveMetadata(metadata);
     }
     
     if (finalType === 'PAGE_VIEW') {
