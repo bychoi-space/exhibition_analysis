@@ -96,3 +96,10 @@ You must define these custom CSS variables in `style.css` and use them exclusive
 - **No Heavy Shadows**: Keep drop-shadows empty or extremely faint (`rgba(0,0,0,0.03)`). Depth comes from colored block cards.
 - **No Dark Theme Base**: The background (`--colors-canvas`) is ALWAYS `#fffaf0`. Do not invert the canvas to black or dark-gray for the analytics dashboard; adapt the dashboard to fit inside the warm cream aesthetic beautifully!
 - **No Bolder display weight**: Keep display titles at weight 500 with tight letter-spacing.
+- **No Floating Bottom Elements**: Always use `margin-top: auto` or flex-justify alignments on bottom comparison metrics (YoY, MoM, sub-labels) in scorecard grids. Never allow vertical offsets due to differential text wraps or font size variations.
+
+## 📐 Layout Alignment & Visual QA Guidelines
+- **Strict Grid Card Min-Heights**: All scorecard/dashboard summary grids must enforce a uniform card minimum height (e.g. `min-height: 185px` for `.stat-card`) in CSS.
+- **Header Uniformity**: Enforce standard `min-height` on text headers inside card components (like `min-height: 38px` on `.stat-header`) to align main metrics vertically.
+- **Bottom Metric Pinning**: Always pin comparative indicators (e.g. YoY / MoM changes) to the absolute bottom of flex-based grid cards using `margin-top: auto`. This guarantees flawless visual alignment regardless of title lengths or font-size adjustments.
+- **Always QA for Text Wrapping**: Before committing, verify if text elements wrap dynamically under different view modes (e.g., "Daily Avg" vs "Cumulative") and ensure it does not break row alignments.

@@ -745,6 +745,7 @@ h1, h2, h3, h4, h5, h6 {
   position: relative;
   overflow: hidden;
   transition: transform 0.2s, box-shadow 0.2s;
+  min-height: 185px;
 }
 
 .stat-card:hover {
