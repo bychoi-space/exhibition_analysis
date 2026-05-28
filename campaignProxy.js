@@ -116,11 +116,26 @@ function cleanExhibitionHtml(html) {
   // 4. 프록시 페이지 내에 CSP(Content-Security-Policy) 메타 태그가 있다면 제거하여 혼선 예방
   cleaned = cleaned.replace(/<meta[^>]*http-equiv=["']Content-Security-Policy["'][^>]*>/gi, '');
 
-  // 5. [CRITICAL/SNAPSHOT] 모든 <script> 태그 및 인라인 자바스크립트 실행 코드 원천 제거
+  // 5. [CRITICAL/SNAPSHOT] 모든 <script> 태그 및 외부 JS 리소스 로더 완벽 차단
   // 무거운 LFmall React 런타임 및 API/Datadog/Buzzvil 통신 스크립트가 브라우저에서 돌며
   // CORS 에러 및 토큰 크래시를 유발하여 화면을 먹통으로 만드는 문제를 원천 봉쇄합니다.
   // 이로써 에러율 0.00%의 정밀한 HTML/CSS 디자인 스냅샷만 미려하게 로드됩니다.
-  cleaned = cleaned.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  
+  // A. 표준 <script> ... </script> 제거 (내부 인라인 스크립트 포함)
+  cleaned = cleaned.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gi, '');
+  
+  // B. Self-closing <script ... /> 제거
+  cleaned = cleaned.replace(/<script\b[^>]*\/>/gi, '');
+  
+  // C. 혹시 남아있을 수 있는 짝 없는 <script ...> 태그 제거
+  cleaned = cleaned.replace(/<script\b[^>]*>/gi, '');
+  
+  // D. JS 파일을 사전 로딩하는 <link rel="preload" as="script"> 등 무력화
+  cleaned = cleaned.replace(/<link[^>]*as=["']script["'][^>]*>/gi, '');
+  cleaned = cleaned.replace(/<link[^>]*rel=["'](module)?preload["'][^>]*>/gi, '');
+  
+  // E. JS 스크립트 강제 주입을 원천 차단하기 위해, src에 .js가 포함된 잔여 태그 소거
+  cleaned = cleaned.replace(/<script\s+[^>]*src=[^>]*\.js[^>]*><\/script>/gi, '');
 
   // inline onload, onerror, onclick 등 이벤트 핸들러 제거로 안정성 극대화
   cleaned = cleaned.replace(/\son[a-z]+\s*=\s*["'][^"']*["']/gi, '');
