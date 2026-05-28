@@ -6,6 +6,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const campaignTitleResolver = require('./campaignTitleResolver');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -268,60 +269,30 @@ app.post('/api/collect', async (req, res) => {
   const metadata = await fetchMetadata();
   const attributions = await fetchSessionAttributions();
 
-  // If we see a new exhibition or need to update title
+  // If we see a new exhibition, resolve and persist its title cleanly using the resolver module
   if (exhibitionId) {
-    // Check if the current incoming client title is a generic SPA layout placeholder
-    const isCorruptedOrGeneric = (title) => {
-      if (!title || typeof title !== 'string') return true;
-      const t = title.trim();
-      return t === '' || 
-             t.includes('나를 나답게') || 
-             t.includes('LFmall.com') || 
-             t === 'LFmall' || 
-             t === '엘에프몰' || 
-             /^(LFmall|엘에프몰|LF몰|LFMALL|home|홈|main|메인)$/i.test(t);
-    };
-
-    // 1. Process client-provided title
-    let incomingTitle = safeExtra.exhibitionTitle;
-
-    // 2. Decide the final display title
-    let finalTitle = '기획전 캠페인';
-    
-    // Check what is already stored
     const existing = metadata[exhibitionId];
-    
-    // A stored title is only truly valid if it exists, is not generic, and is not the temporary "기획전 캠페인" placeholder.
-    const isExistingValid = existing && 
-                            !isCorruptedOrGeneric(existing.title) && 
-                            existing.title !== '기획전 캠페인';
+    const incomingTitle = safeExtra.exhibitionTitle;
 
-    if (isExistingValid) {
-      // If we already have a truly valid title stored, keep it forever (First-Write-Wins)
-      finalTitle = existing.title;
-    } else if (!isCorruptedOrGeneric(incomingTitle)) {
-      // If nothing valid is stored, but the incoming GTM title is valid, write it!
-      finalTitle = incomingTitle.trim();
-    } else if (existing && existing.title) {
-      // Otherwise, reuse whatever is already there
-      finalTitle = existing.title;
-    }
+    // Use our state-aware domain resolver (First-Write-Wins with placeholder healing)
+    const resolved = campaignTitleResolver.resolveExhibitionTitle(
+      existing ? existing.title : null,
+      incomingTitle
+    );
 
-    // Extract brand from final title
+    const finalTitle = resolved.title;
+
+    // Parse out brand name from resolved title
     const brandMatch = finalTitle.match(/\(([^)]+)\)/);
     const brand = brandMatch ? brandMatch[1] : 'LF MALL';
 
-    // Update metadata if it is missing, if the stored title is placeholder/corrupted, 
-    // or if we finally got a valid incoming title that differs from our current placeholder.
-    const isStoredCorrupted = !existing || isCorruptedOrGeneric(existing.title) || existing.title === '기획전 캠페인';
-    const isValidIncomingAvailable = !isCorruptedOrGeneric(incomingTitle);
-
-    if (!existing || isStoredCorrupted || (isValidIncomingAvailable && existing.title !== finalTitle)) {
+    // Persist to the database only when the resolver indicates a state change is required
+    if (resolved.shouldUpdate) {
       metadata[exhibitionId] = { id: exhibitionId, title: finalTitle, brand };
       await saveMetadata(metadata);
     }
 
-    // Update the local variable so downstream metrics get the correct clean title
+    // Direct downstream telemetry payload to use the correct unified title
     safeExtra.exhibitionTitle = finalTitle;
     
     if (finalType === 'PAGE_VIEW') {
