@@ -104,17 +104,32 @@ function cleanExhibitionHtml(html) {
   const mockScript = `
   <script>
     (function() {
+      const MOCK_OMNI_DATA = {
+        result: { 
+          token: 'mock-token-value-12345', 
+          session: 'mock-session-12345',
+          status: '200',
+          data: { token: 'mock-token-value-12345' }
+        },
+        data: { 
+          token: 'mock-token-value-12345', 
+          session: 'mock-session-12345',
+          result: { token: 'mock-token-value-12345' }
+        },
+        token: 'mock-token-value-12345',
+        session: 'mock-session-12345',
+        code: '200',
+        status: '200',
+        message: 'SUCCESS'
+      };
+
       // 1. fetch API 모킹
       const originalFetch = window.fetch;
       window.fetch = function(input, init) {
         const url = typeof input === 'string' ? input : (input?.url || '');
         if (url.includes('nxapi.lfmall.co.kr')) {
           console.log('[TELEMETRY-API-MOCK] Bypassed real network call and mocked response for:', url);
-          return Promise.resolve(new Response(JSON.stringify({
-            result: { token: 'mock-token', session: null, status: '200' },
-            code: '200',
-            message: 'SUCCESS'
-          }), {
+          return Promise.resolve(new Response(JSON.stringify(MOCK_OMNI_DATA), {
             status: 200,
             headers: { 'Content-Type': 'application/json; charset=utf-8' }
           }));
@@ -140,7 +155,7 @@ function cleanExhibitionHtml(html) {
           Object.defineProperty(this, 'status', { writable: true, value: 200 });
           Object.defineProperty(this, 'responseText', { 
             writable: true, 
-            value: JSON.stringify({ result: {}, code: '200', message: 'SUCCESS' }) 
+            value: JSON.stringify(MOCK_OMNI_DATA) 
           });
           setTimeout(() => {
             if (typeof this.onreadystatechange === 'function') this.onreadystatechange();
