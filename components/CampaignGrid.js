@@ -3,6 +3,8 @@
 // ==========================================================================
 
 const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, isLoadingMore, setIsLoadingMore }) => {
+  const [layoutMode, setLayoutMode] = React.useState('card'); // 'card', 'list'
+
   return (
     <div className="chart-card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: 'var(--spacing-md)' }}>
@@ -14,89 +16,214 @@ const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, i
             {viewMode === 'average' ? '현재 활성화되어 있는 각 기획전별 일 평균 성과 지표 랭킹입니다.' : '현재 활성화되어 있는 각 기획전별 순 유저(UV), 체류시간, 전환율 및 Last-Touch 기여 매출액 랭킹입니다.'}
           </p>
         </div>
-        <span className="caption-uppercase" style={{ backgroundColor: 'var(--colors-surface-soft)', color: 'var(--colors-brand-teal)', padding: '4px 10px', borderRadius: 'var(--rounded-pill)', fontSize: '11px', fontWeight: 700, border: '1px solid var(--colors-hairline)' }}>
-          총 {displayPages.length}개 운영 중
-        </span>
+
+        {/* View Layout Mode Toggle Button */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <span className="caption-uppercase" style={{ backgroundColor: 'var(--colors-surface-soft)', color: 'var(--colors-brand-teal)', padding: '4px 10px', borderRadius: 'var(--rounded-pill)', fontSize: '11px', fontWeight: 700, border: '1px solid var(--colors-hairline)' }}>
+            총 {displayPages.length}개 운영 중
+          </span>
+          <div style={{ display: 'flex', backgroundColor: 'var(--colors-surface-strong)', padding: '3px', borderRadius: 'var(--rounded-pill)', border: '1px solid var(--colors-hairline)' }}>
+            <button
+              onClick={() => setLayoutMode('card')}
+              style={{
+                border: 'none',
+                background: layoutMode === 'card' ? 'var(--colors-canvas)' : 'none',
+                color: layoutMode === 'card' ? 'var(--colors-ink)' : 'var(--colors-muted)',
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: '4px 12px',
+                borderRadius: 'var(--rounded-pill)',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              🎴 카드형
+            </button>
+            <button
+              onClick={() => setLayoutMode('list')}
+              style={{
+                border: 'none',
+                background: layoutMode === 'list' ? 'var(--colors-canvas)' : 'none',
+                color: layoutMode === 'list' ? 'var(--colors-ink)' : 'var(--colors-muted)',
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: '4px 12px',
+                borderRadius: 'var(--rounded-pill)',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              📝 리스트형
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Campaign Cards Grid */}
-      <div className="campaign-grid">
-        {displayPages.slice(0, visibleCount).map((p, idx) => {
-          // Dynamically parse brand name inside parentheses
-          const brandMatch = p.title.match(/\(([^)]+)\)/);
-          const brandName = brandMatch ? brandMatch[1] : 'LF MALL';
-          const cleanTitle = p.title.replace(/\([^)]+\)/, '').trim();
+      {layoutMode === 'list' ? (
+        /* PREMIUM LEDGER LIST VIEW */
+        <div className="table-container" style={{ marginTop: 'var(--spacing-md)' }}>
+          <table className="analytics-table">
+            <thead>
+              <tr>
+                <th style={{ width: '60px', textAlign: 'center' }}>순위</th>
+                <th style={{ width: '110px' }}>브랜드</th>
+                <th>기획전 캠페인명</th>
+                <th style={{ textAlign: 'right' }}>{viewMode === 'average' ? '일 평균 PV' : '누적 PV'}</th>
+                <th style={{ textAlign: 'right' }}>{viewMode === 'average' ? '일 평균 UV' : '순 방문자'}</th>
+                <th style={{ textAlign: 'right' }}>{viewMode === 'average' ? '일 평균 클릭' : '클릭 활동'}</th>
+                <th style={{ textAlign: 'center' }}>체류시간</th>
+                <th style={{ textAlign: 'center' }}>이탈률</th>
+                <th style={{ textAlign: 'center' }}>CVR</th>
+                <th style={{ textAlign: 'right' }}>기여 매출액</th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayPages.slice(0, visibleCount).map((p, idx) => {
+                const brandMatch = p.title.match(/\(([^)]+)\)/);
+                const brandName = brandMatch ? brandMatch[1] : 'LF MALL';
+                const cleanTitle = p.title.replace(/\([^)]+\)/, '').trim();
 
-          // Dynamic Brand Colors
-          const getBrandColor = (brand) => {
-            const b = brand.toUpperCase();
-            if (b.includes('DAKS') || b.includes('닥스')) return 'var(--colors-brand-pink)';
-            if (b.includes('HAZZYS') || b.includes('헤지스')) return 'var(--colors-brand-teal)';
-            if (b.includes('JILL') || b.includes('질스튜어트') || b.includes('질바이')) return 'var(--colors-brand-lavender)';
-            if (b.includes('ATHE') || b.includes('아떼') || b.includes('바네사') || b.includes('앳코너')) return 'var(--colors-brand-ochre)';
-            if (b.includes('LUXURY') || b.includes('명품') || b.includes('이자벨') || b.includes('바버') || b.includes('레오나드')) return 'var(--colors-brand-coral)';
-            return 'var(--colors-brand-mint)';
-          };
+                const getBrandColor = (brand) => {
+                  const b = brand.toUpperCase();
+                  if (b.includes('DAKS') || b.includes('닥스')) return 'var(--colors-brand-pink)';
+                  if (b.includes('HAZZYS') || b.includes('헤지스')) return 'var(--colors-brand-teal)';
+                  if (b.includes('JILL') || b.includes('질스튜어트') || b.includes('질바이')) return 'var(--colors-brand-lavender)';
+                  if (b.includes('ATHE') || b.includes('아떼') || b.includes('바네사') || b.includes('앳코너')) return 'var(--colors-brand-ochre)';
+                  if (b.includes('LUXURY') || b.includes('명품') || b.includes('이자벨') || b.includes('바버') || b.includes('레오나드')) return 'var(--colors-brand-coral)';
+                  return 'var(--colors-brand-mint)';
+                };
 
-          const brandColor = getBrandColor(brandName);
+                const brandColor = getBrandColor(brandName);
+                const isTop3 = idx < 3;
+                const rankEmoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`;
 
-          return (
-            <div key={p.id || idx} className="campaign-card" style={{ '--card-brand-color': brandColor }}>
-              <div className="campaign-card-brand-stripe" style={{ backgroundColor: brandColor }} />
-              
-              <div className="campaign-card-header">
-                <span className="campaign-card-brand" style={{ backgroundColor: `${brandColor}15`, color: brandColor }}>
-                  {brandName}
-                </span>
-                <span className="campaign-card-id">#{p.id}</span>
+                return (
+                  <tr key={p.id || idx} style={{ transition: 'all 0.2s' }}>
+                    <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: isTop3 ? '16px' : '13px' }}>
+                      {rankEmoji}
+                    </td>
+                    <td>
+                      <span style={{ 
+                        display: 'inline-block',
+                        fontSize: '11px', 
+                        fontWeight: '700', 
+                        padding: '2px 8px', 
+                        borderRadius: 'var(--rounded-pill)', 
+                        backgroundColor: `${brandColor}15`, 
+                        color: brandColor,
+                        border: `1px solid ${brandColor}30`,
+                        textAlign: 'center',
+                        width: '90px',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>
+                        {brandName}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontWeight: '600', color: 'var(--colors-ink)', fontSize: '14px' }}>{cleanTitle}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--colors-muted-soft)', marginTop: '2px' }}>ID: #{p.id}</span>
+                      </div>
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: '500', fontFamily: 'monospace' }}>{p.pv.toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', fontWeight: '500', fontFamily: 'monospace' }}>{p.uv.toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', fontWeight: '600', color: 'var(--colors-brand-pink)', fontFamily: 'monospace' }}>{p.clicks.toLocaleString()}회</td>
+                    <td style={{ textAlign: 'center', fontWeight: '500' }}>{p.avgStay}</td>
+                    <td style={{ textAlign: 'center', color: parseFloat(p.bounceRate) > 50 ? 'var(--colors-warning)' : 'var(--colors-success)', fontWeight: '600' }}>🚪 {p.bounceRate}</td>
+                    <td style={{ textAlign: 'center', color: 'var(--colors-brand-teal)', fontWeight: '600' }}>🎯 {p.cvr}</td>
+                    <td style={{ textAlign: 'right', fontWeight: '700', color: 'var(--colors-ink)' }}>₩{p.revenue.toLocaleString()}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        /* ORIGINAL PREMIUM CARDS GRID VIEW */
+        <div className="campaign-grid">
+          {displayPages.slice(0, visibleCount).map((p, idx) => {
+            const brandMatch = p.title.match(/\(([^)]+)\)/);
+            const brandName = brandMatch ? brandMatch[1] : 'LF MALL';
+            const cleanTitle = p.title.replace(/\([^)]+\)/, '').trim();
+
+            const getBrandColor = (brand) => {
+              const b = brand.toUpperCase();
+              if (b.includes('DAKS') || b.includes('닥스')) return 'var(--colors-brand-pink)';
+              if (b.includes('HAZZYS') || b.includes('헤지스')) return 'var(--colors-brand-teal)';
+              if (b.includes('JILL') || b.includes('질스튜어트') || b.includes('질바이')) return 'var(--colors-brand-lavender)';
+              if (b.includes('ATHE') || b.includes('아떼') || b.includes('바네사') || b.includes('앳코너')) return 'var(--colors-brand-ochre)';
+              if (b.includes('LUXURY') || b.includes('명품') || b.includes('이자벨') || b.includes('바버') || b.includes('레오나드')) return 'var(--colors-brand-coral)';
+              return 'var(--colors-brand-mint)';
+            };
+
+            const brandColor = getBrandColor(brandName);
+
+            return (
+              <div key={p.id || idx} className="campaign-card" style={{ '--card-brand-color': brandColor }}>
+                <div className="campaign-card-brand-stripe" style={{ backgroundColor: brandColor }} />
+                
+                <div className="campaign-card-header">
+                  <span className="campaign-card-brand" style={{ backgroundColor: `${brandColor}15`, color: brandColor }}>
+                    {brandName}
+                  </span>
+                  <span className="campaign-card-id">#{p.id}</span>
+                </div>
+
+                <h4 className="campaign-card-title" title={p.title}>{cleanTitle}</h4>
+
+                <div className="campaign-card-metrics">
+                  <div className="campaign-metric-item">
+                    <span className="campaign-metric-label">
+                      {viewMode === 'average' ? '일 평균 PV' : '누적 PV'}
+                    </span>
+                    <span className="campaign-metric-value">{p.pv.toLocaleString()}</span>
+                  </div>
+                  <div className="campaign-metric-item">
+                    <span className="campaign-metric-label">
+                      {viewMode === 'average' ? '일 평균 UV' : '순 방문자'}
+                    </span>
+                    <span className="campaign-metric-value">{p.uv.toLocaleString()}</span>
+                  </div>
+                  <div className="campaign-metric-item">
+                    <span className="campaign-metric-label">
+                      {viewMode === 'average' ? '일 평균 클릭' : '클릭 활동'}
+                    </span>
+                    <span className="campaign-metric-value" style={{ color: 'var(--colors-brand-pink)', fontWeight: 700 }}>
+                      {p.clicks.toLocaleString()}회
+                    </span>
+                  </div>
+                  <div className="campaign-metric-item">
+                    <span className="campaign-metric-label">체류 시간</span>
+                    <span className="campaign-metric-value">{p.avgStay}</span>
+                  </div>
+                </div>
+
+                <div className="campaign-card-footer">
+                  <div className="campaign-ratio-group">
+                    <span className="campaign-ratio-badge" title="이탈률">
+                      🚪 {p.bounceRate}
+                    </span>
+                    <span className="campaign-ratio-badge" title="구매 전환율 (CVR)" style={{ color: 'var(--colors-brand-teal)' }}>
+                      🎯 {p.cvr}
+                    </span>
+                  </div>
+                  <span className="campaign-revenue-badge">
+                    ₩{p.revenue.toLocaleString()}
+                  </span>
+                </div>
               </div>
-
-              <h4 className="campaign-card-title" title={p.title}>{cleanTitle}</h4>
-
-              <div className="campaign-card-metrics">
-                <div className="campaign-metric-item">
-                  <span className="campaign-metric-label">
-                    {viewMode === 'average' ? '일 평균 PV' : '누적 PV'}
-                  </span>
-                  <span className="campaign-metric-value">{p.pv.toLocaleString()}</span>
-                </div>
-                <div className="campaign-metric-item">
-                  <span className="campaign-metric-label">
-                    {viewMode === 'average' ? '일 평균 UV' : '순 방문자'}
-                  </span>
-                  <span className="campaign-metric-value">{p.uv.toLocaleString()}</span>
-                </div>
-                <div className="campaign-metric-item">
-                  <span className="campaign-metric-label">
-                    {viewMode === 'average' ? '일 평균 클릭' : '클릭 활동'}
-                  </span>
-                  <span className="campaign-metric-value" style={{ color: 'var(--colors-brand-pink)', fontWeight: 700 }}>
-                    {p.clicks.toLocaleString()}회
-                  </span>
-                </div>
-                <div className="campaign-metric-item">
-                  <span className="campaign-metric-label">체류 시간</span>
-                  <span className="campaign-metric-value">{p.avgStay}</span>
-                </div>
-              </div>
-
-              <div className="campaign-card-footer">
-                <div className="campaign-ratio-group">
-                  <span className="campaign-ratio-badge" title="이탈률">
-                    🚪 {p.bounceRate}
-                  </span>
-                  <span className="campaign-ratio-badge" title="구매 전환율 (CVR)" style={{ color: 'var(--colors-brand-teal)' }}>
-                    🎯 {p.cvr}
-                  </span>
-                </div>
-                <span className="campaign-revenue-badge">
-                  ₩{p.revenue.toLocaleString()}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Lazy Load Button */}
       {visibleCount < displayPages.length && (
