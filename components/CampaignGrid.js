@@ -4,7 +4,7 @@
 
 const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, isLoadingMore, setIsLoadingMore }) => {
   const [layoutMode, setLayoutMode] = React.useState('list'); // Default to 'list'!
-  const [sortField, setSortField] = React.useState('revenue'); // Default sort field: revenue
+  const [sortField, setSortField] = React.useState('pv'); // Default sort field: accumulated PV
   const [sortDirection, setSortDirection] = React.useState('desc'); // Default sort direction: descending
 
   // Dynamic Multi-type Sorting logic

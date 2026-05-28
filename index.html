@@ -132,7 +132,7 @@
     // ==========================================================================
     const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, isLoadingMore, setIsLoadingMore }) => {
       const [layoutMode, setLayoutMode] = React.useState('list'); // Default to list!
-      const [sortField, setSortField] = React.useState('revenue'); // Default sorting field: revenue
+      const [sortField, setSortField] = React.useState('pv'); // Default sorting field: accumulated PV
       const [sortDirection, setSortDirection] = React.useState('desc'); // Default: descending
 
       const sortedPages = React.useMemo(() => {

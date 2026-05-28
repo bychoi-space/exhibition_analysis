@@ -278,9 +278,15 @@ app.post('/api/collect', async (req, res) => {
     const brandMatch = safeExtra.exhibitionTitle.match(/\(([^)]+)\)/);
     const brand = brandMatch ? brandMatch[1] : 'LF MALL';
     
-    if (!metadata[exhibitionId] || metadata[exhibitionId].title.includes("LFmall.com") || metadata[exhibitionId].title.includes("나를 나답게")) {
-      metadata[exhibitionId] = { id: exhibitionId, title: safeExtra.exhibitionTitle, brand };
-      await saveMetadata(metadata);
+    if (!metadata[exhibitionId] || 
+        metadata[exhibitionId].title.includes("LFmall.com") || 
+        metadata[exhibitionId].title.includes("나를 나답게") ||
+        metadata[exhibitionId].title.startsWith("기획전 캠페인_")) {
+      // Only update if incoming title is NOT a fallback name itself
+      if (!safeExtra.exhibitionTitle.startsWith("기획전 캠페인_") || !metadata[exhibitionId]) {
+        metadata[exhibitionId] = { id: exhibitionId, title: safeExtra.exhibitionTitle, brand };
+        await saveMetadata(metadata);
+      }
     }
     
     if (finalType === 'PAGE_VIEW') {
@@ -468,7 +474,7 @@ app.get('/api/stats', async (req, res) => {
       revenue: ex.revenue,
       cvr: ex.pv ? ((ex.orderCount / ex.pv) * 100).toFixed(1) + '%' : '0.0%'
     };
-  }).sort((a, b) => b.revenue - a.revenue); // Sort by highest revenue generated
+  }).sort((a, b) => b.pv - a.pv); // Sort by highest accumulated PV (default)
 
   // Compute stats card metrics
   const totalExPV = exhibitionsPerformanceList.reduce((acc, curr) => acc + curr.pv, 0);
