@@ -353,13 +353,21 @@ app.post('/api/collect', async (req, res) => {
   
   // Clean up and construct safe extra parameters
   const safeExtra = extra || {};
+  if (safeExtra.exhibitionTitle && (safeExtra.exhibitionTitle.includes("LFmall.com") || safeExtra.exhibitionTitle.includes("나를 나답게"))) {
+    if (exhibitionId === '106251') {
+      safeExtra.exhibitionTitle = '(DAKS) [명품단독] 닥스 여성 서머 시즌 메가 베스트 기획전';
+    } else {
+      safeExtra.exhibitionTitle = `기획전 캠페인_${exhibitionId}`;
+    }
+  }
+
   if (exhibitionId && !safeExtra.exhibitionTitle) {
     // If title is missing, fallback to title mapped in metadata, or assign a friendly default
     safeExtra.exhibitionTitle = EXHIBITION_METADATA[exhibitionId] || `기획전 캠페인_${exhibitionId}`;
   }
 
   // Dynamic self-registration: If we see a new exhibitionId, register it dynamically!
-  if (exhibitionId && !EXHIBITION_METADATA[exhibitionId]) {
+  if (exhibitionId && (!EXHIBITION_METADATA[exhibitionId] || EXHIBITION_METADATA[exhibitionId].includes("LFmall.com"))) {
     EXHIBITION_METADATA[exhibitionId] = safeExtra.exhibitionTitle || `기획전 캠페인_${exhibitionId}`;
     console.log(`[DATABASE-DYNAMIC] Registered new exhibition dynamically: [ID: ${exhibitionId}] - ${EXHIBITION_METADATA[exhibitionId]}`);
   }
@@ -443,9 +451,18 @@ app.get('/api/stats', async (req, res) => {
     // 2. Trace the last visited exhibition in this session
     const currentExId = e.extra?.exhibitionId || extractExhibitionId(e.url || '');
     if (currentExId) {
+      let rawTitle = e.extra?.exhibitionTitle || EXHIBITION_METADATA[currentExId] || `기획전 캠페인_${currentExId}`;
+      if (rawTitle.includes("LFmall.com") || rawTitle.includes("나를 나답게")) {
+        if (currentExId === '106251') {
+          rawTitle = '(DAKS) [명품단독] 닥스 여성 서머 시즌 메가 베스트 기획전';
+        } else {
+          rawTitle = `기획전 캠페인_${currentExId}`;
+        }
+      }
+
       // Auto register missing exhibition metadata to prevent loop drops
-      if (!EXHIBITION_METADATA[currentExId]) {
-        EXHIBITION_METADATA[currentExId] = e.extra?.exhibitionTitle || `기획전 캠페인_${currentExId}`;
+      if (!EXHIBITION_METADATA[currentExId] || EXHIBITION_METADATA[currentExId].includes("LFmall.com")) {
+        EXHIBITION_METADATA[currentExId] = rawTitle;
       }
 
       sessionToLastExhibition[e.sessionId] = currentExId;

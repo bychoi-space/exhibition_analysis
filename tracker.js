@@ -239,13 +239,21 @@ export const trackPageView = (pageType, url, extra = {}) => {
   let exhibitionTitle = extra.exhibitionTitle;
   
   if (exhibitionId && !exhibitionTitle && typeof document !== 'undefined') {
-    let pageTitle = document.title || '';
-    // Clean up generic corporate suffixes (e.g., " | LFmall", " - 엘에프몰" etc.)
-    exhibitionTitle = pageTitle
-      .replace(/\s*[|:-]\s*(LFmall|엘에프몰|LF몰|LFMALL|lf몰)\s*$/gi, '')
-      .trim();
-      
-    // Fallback search in meta tags if generic
+    // 1. Prioritize extracting from the <h1> element since LFmall exhibition titles are placed inside h1 tags
+    const h1El = document.querySelector('h1');
+    if (h1El && h1El.innerText && h1El.innerText.trim()) {
+      exhibitionTitle = h1El.innerText.trim();
+    }
+    
+    // 2. Fallback to document.title (cleaned up) if h1 is missing
+    if (!exhibitionTitle || /^(LFmall|엘에프몰|LF몰|LFMALL|home|홈|main|메인)$/i.test(exhibitionTitle)) {
+      let pageTitle = document.title || '';
+      exhibitionTitle = pageTitle
+        .replace(/\s*[|:-]\s*(LFmall|엘에프몰|LF몰|LFMALL|lf몰)\s*$/gi, '')
+        .trim();
+    }
+    
+    // 3. Fallback search in og:title meta tags if still generic
     if (!exhibitionTitle || /^(LFmall|엘에프몰|LF몰|LFMALL)$/i.test(exhibitionTitle)) {
       const ogTitle = document.querySelector('meta[property="og:title"]');
       if (ogTitle && ogTitle.content) {
