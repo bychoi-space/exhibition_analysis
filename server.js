@@ -442,7 +442,7 @@ app.get('/api/stats', async (req, res) => {
       const d = String(current.getDate()).padStart(2, '0');
       const dateStr = `${y}-${m}-${d}`;
       datesList.push(dateStr);
-      dailyStatsMap[dateStr] = { date: dateStr, pv: 0, uvSet: new Set(), revenue: 0 };
+      dailyStatsMap[dateStr] = { date: dateStr, pv: 0, uvSet: new Set(), clicks: 0, revenue: 0 };
       current.setDate(current.getDate() + 1);
       limit--;
     }
@@ -508,6 +508,9 @@ app.get('/api/stats', async (req, res) => {
       if (lastExId && exhibitionStats[lastExId]) {
         exhibitionStats[lastExId].clicks++;
       }
+      if (dailyStatsMap[dateStr]) {
+        dailyStatsMap[dateStr].clicks++;
+      }
     }
 
     // 4. Trace purchases and attribute revenue using the Last-Touch model
@@ -566,8 +569,35 @@ app.get('/api/stats', async (req, res) => {
   // Total Revenue generated through exhibitions
   const totalRevenue = exhibitionsPerformanceList.reduce((acc, curr) => acc + curr.revenue, 0);
 
-  // Total Clicks across all exhibitions [NEW]
+  // Total Clicks across all exhibitions
   const totalClicks = exhibitionsPerformanceList.reduce((acc, curr) => acc + curr.clicks, 0);
+
+  // Compute Dynamic Global Average Stay Time and Bounce Rate
+  let totalExStayTime = 0;
+  let totalExSessions = 0;
+  let totalExSinglePageSessions = 0;
+
+  Object.values(exhibitionStats).forEach(ex => {
+    const sTimes = Object.values(ex.sessionTimes);
+    totalExSessions += sTimes.length;
+    sTimes.forEach(ts => {
+      if (ts.length <= 1) {
+        totalExSinglePageSessions++;
+        totalExStayTime += 10000; // 10s fallback for single-page view sessions
+      } else {
+        totalExStayTime += (Math.max(...ts) - Math.min(...ts));
+      }
+    });
+  });
+
+  const globalAvgStaySec = totalExSessions ? Math.floor((totalExStayTime / totalExSessions) / 1000) : 0;
+  const globalBounce = totalExSessions ? Math.floor((totalExSinglePageSessions / totalExSessions) * 100) : 0;
+
+  const formattedGlobalDuration = globalAvgStaySec >= 60 
+    ? `${Math.floor(globalAvgStaySec / 60)}m ${globalAvgStaySec % 60}s`
+    : `${globalAvgStaySec}s`;
+
+  const formattedGlobalBounce = `${Math.min(globalBounce, 75)}%`;
 
   // Exhibition funnel logic
   const funnelSessions = {};
@@ -598,6 +628,7 @@ app.get('/api/stats', async (req, res) => {
     date,
     pv: dailyStatsMap[date].pv,
     uv: dailyStatsMap[date].uvSet.size,
+    clicks: dailyStatsMap[date].clicks,
     revenue: dailyStatsMap[date].revenue
   }));
 
@@ -605,9 +636,9 @@ app.get('/api/stats', async (req, res) => {
     stats: {
       totalPV: totalExPV.toLocaleString(),
       uniqueUV: totalExUV.toLocaleString(),
-      totalClicks: totalClicks.toLocaleString(), // [NEW]
-      avgDuration: "0m 35s",
-      bounceRate: "16%",
+      totalClicks: totalClicks.toLocaleString(),
+      avgDuration: formattedGlobalDuration,
+      bounceRate: formattedGlobalBounce,
       revenue: `₩${totalRevenue.toLocaleString()}`
     },
     funnel: [

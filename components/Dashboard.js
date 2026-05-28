@@ -54,8 +54,6 @@ const AnalyticsDashboard = () => {
 
   useEffect(() => {
     refresh();
-    const poll = setInterval(refresh, 2500); 
-    return () => clearInterval(poll);
   }, [startDate, endDate]);
 
   const handlePresetChange = (preset) => {
@@ -81,60 +79,90 @@ const AnalyticsDashboard = () => {
   const getPageTypeClass = (type) => `page-type-pill ${type.toLowerCase()}`;
 
   // Daily chart calculations
-  const [selectedMetric, setSelectedMetric] = useState('pv'); // 'pv', 'uv', 'revenue'
+  const [selectedMetric, setSelectedMetric] = useState('all'); // 'all', 'pv', 'uv', 'clicks', 'revenue'
   const [hoveredIndex, setHoveredIndex] = useState(null);
 
   const paddingLeft = 50;
   const paddingRight = 30;
   const paddingTop = 20;
   const paddingBottom = 30;
-  const chartWidth = 620 - paddingLeft - paddingRight;
+  const chartWidth = 1000 - paddingLeft - paddingRight; // 920 for expanded width
   const chartHeight = 220 - paddingTop - paddingBottom;
 
-  const { points, maxVal, gridLines, linePath, areaPath } = useMemo(() => {
+  const chartData = useMemo(() => {
     if (!dailyPerformance || dailyPerformance.length === 0) {
-      return { points: [], maxVal: 1, gridLines: [], linePath: '', areaPath: '' };
+      return {};
     }
 
-    const values = dailyPerformance.map(d => d[selectedMetric] || 0);
-    let maxValue = Math.max(...values, 0);
-    let maxVal = maxValue > 0 ? maxValue : 10;
-    
-    // Add 15% headroom
-    maxVal = Math.ceil(maxVal * 1.15);
+    const result = {};
+    const metricKeys = ['pv', 'uv', 'clicks', 'revenue'];
 
-    // Grid lines (4 divisions)
-    const gridLines = [0, Math.floor(maxVal * 0.33), Math.floor(maxVal * 0.66), maxVal];
+    metricKeys.forEach(m => {
+      const values = dailyPerformance.map(d => d[m] || 0);
+      let maxValue = Math.max(...values, 0);
+      let maxVal = maxValue > 0 ? maxValue : 10;
+      maxVal = Math.ceil(maxVal * 1.15);
 
-    const N = dailyPerformance.length;
-    const points = dailyPerformance.map((item, idx) => {
-      const x = paddingLeft + (idx / Math.max(N - 1, 1)) * chartWidth;
-      const y = (220 - paddingBottom) - (item[selectedMetric] / maxVal) * chartHeight;
-      return { x, y };
+      const N = dailyPerformance.length;
+      const points = dailyPerformance.map((item, idx) => {
+        const x = paddingLeft + (idx / Math.max(N - 1, 1)) * chartWidth;
+        const y = (220 - paddingBottom) - ((item[m] || 0) / maxVal) * chartHeight;
+        return { x, y };
+      });
+
+      // Make smooth cubic bezier curve
+      let linePath = '';
+      let areaPath = '';
+      if (points.length > 0) {
+        linePath = `M ${points[0].x} ${points[0].y}`;
+        areaPath = `M ${points[0].x} ${220 - paddingBottom} L ${points[0].x} ${points[0].y}`;
+        
+        for (let i = 0; i < points.length - 1; i++) {
+          const cpX1 = points[i].x + (points[i+1].x - points[i].x) / 3;
+          const cpY1 = points[i].y;
+          const cpX2 = points[i].x + 2 * (points[i+1].x - points[i].x) / 3;
+          const cpY2 = points[i+1].y;
+          
+          linePath += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${points[i+1].x} ${points[i+1].y}`;
+          areaPath += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${points[i+1].x} ${points[i+1].y}`;
+        }
+        
+        areaPath += ` L ${points[points.length - 1].x} ${220 - paddingBottom} Z`;
+      }
+
+      const gridLines = [0, Math.floor(maxVal * 0.33), Math.floor(maxVal * 0.66), maxVal];
+
+      result[m] = { points, maxVal, gridLines, linePath, areaPath };
     });
 
-    // Make smooth cubic bezier curve
-    let linePath = '';
-    let areaPath = '';
-    if (points.length > 0) {
-      linePath = `M ${points[0].x} ${points[0].y}`;
-      areaPath = `M ${points[0].x} ${220 - paddingBottom} L ${points[0].x} ${points[0].y}`;
-      
-      for (let i = 0; i < points.length - 1; i++) {
-        const cpX1 = points[i].x + (points[i+1].x - points[i].x) / 3;
-        const cpY1 = points[i].y;
-        const cpX2 = points[i].x + 2 * (points[i+1].x - points[i].x) / 3;
-        const cpY2 = points[i+1].y;
-        
-        linePath += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${points[i+1].x} ${points[i+1].y}`;
-        areaPath += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${points[i+1].x} ${points[i+1].y}`;
-      }
-      
-      areaPath += ` L ${points[points.length - 1].x} ${220 - paddingBottom} Z`;
-    }
+    return result;
+  }, [dailyPerformance, chartWidth, chartHeight]);
 
-    return { points, maxVal, gridLines, linePath, areaPath };
-  }, [dailyPerformance, selectedMetric, chartWidth, chartHeight]);
+  const activePoints = useMemo(() => {
+    const refMetric = selectedMetric === 'all' ? 'pv' : selectedMetric;
+    return chartData[refMetric]?.points || [];
+  }, [selectedMetric, chartData]);
+
+  const gridLinesToRender = useMemo(() => {
+    if (selectedMetric === 'all') {
+      return [
+        { yVal: 100, label: '100%', isPercent: true },
+        { yVal: 66, label: '66%', isPercent: true },
+        { yVal: 33, label: '33%', isPercent: true },
+        { yVal: 0, label: '0%', isPercent: true }
+      ];
+    }
+    if (chartData[selectedMetric]) {
+      const { gridLines, maxVal } = chartData[selectedMetric];
+      return gridLines.map(v => ({
+        yVal: v,
+        label: formatAxisValue(v, selectedMetric),
+        rawMax: maxVal,
+        isPercent: false
+      }));
+    }
+    return [];
+  }, [selectedMetric, chartData]);
 
   const daysCount = useMemo(() => {
     const start = new Date(startDate);
@@ -309,12 +337,14 @@ const AnalyticsDashboard = () => {
           
           <div className="metric-tabs" style={{ display: 'flex', gap: '4px', backgroundColor: 'var(--colors-surface-strong)', padding: '3px', borderRadius: 'var(--rounded-pill)' }}>
             {[
+              { id: 'all', label: '전체', color: 'var(--colors-ink)' },
               { id: 'pv', label: '페이지뷰 (PV)', color: 'var(--colors-brand-pink)' },
               { id: 'uv', label: '순 방문자 (UV)', color: 'var(--colors-brand-teal)' },
+              { id: 'clicks', label: '클릭활동량 (Clicks)', color: 'var(--colors-brand-mint)' },
               { id: 'revenue', label: '기여 매출액 (Revenue)', color: 'var(--colors-brand-ochre)' }
             ].map(tab => {
               const isActive = selectedMetric === tab.id;
-              const dotColor = tab.id === 'pv' ? 'var(--colors-brand-pink)' : tab.id === 'uv' ? 'var(--colors-brand-teal)' : 'var(--colors-brand-ochre)';
+              const dotColor = tab.color;
               return (
                 <button
                   key={tab.id}
@@ -348,7 +378,7 @@ const AnalyticsDashboard = () => {
               선택된 기간에 분석 데이터가 존재하지 않습니다.
             </div>
           ) : (
-            <svg viewBox="0 0 620 220" width="100%" height="100%" style={{ overflow: 'visible' }}>
+            <svg viewBox="0 0 1000 220" width="100%" height="100%" style={{ overflow: 'visible' }}>
               <defs>
                 <linearGradient id="grad-pv" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--colors-brand-pink)" stopOpacity="0.35"/>
@@ -358,20 +388,26 @@ const AnalyticsDashboard = () => {
                   <stop offset="0%" stopColor="var(--colors-brand-teal)" stopOpacity="0.35"/>
                   <stop offset="100%" stopColor="var(--colors-brand-teal)" stopOpacity="0.0"/>
                 </linearGradient>
+                <linearGradient id="grad-clicks" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--colors-brand-mint)" stopOpacity="0.35"/>
+                  <stop offset="100%" stopColor="var(--colors-brand-mint)" stopOpacity="0.0"/>
+                </linearGradient>
                 <linearGradient id="grad-revenue" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--colors-brand-ochre)" stopOpacity="0.35"/>
                   <stop offset="100%" stopColor="var(--colors-brand-ochre)" stopOpacity="0.0"/>
                 </linearGradient>
               </defs>
 
-              {gridLines.map((yVal, i) => {
-                const yCoord = (220 - paddingBottom) - (yVal / maxVal) * chartHeight;
+              {gridLinesToRender.map((item, i) => {
+                const yCoord = item.isPercent
+                  ? (220 - paddingBottom) - (item.yVal / 100) * chartHeight
+                  : (220 - paddingBottom) - (item.yVal / item.rawMax) * chartHeight;
                 return (
                   <g key={i}>
                     <line 
                       x1={paddingLeft} 
                       y1={yCoord} 
-                      x2={620 - paddingRight} 
+                      x2={1000 - paddingRight} 
                       y2={yCoord} 
                       stroke="var(--colors-hairline)" 
                       strokeWidth="1"
@@ -384,39 +420,63 @@ const AnalyticsDashboard = () => {
                       textAnchor="end"
                       fontFamily="monospace"
                     >
-                      {formatAxisValue(yVal, selectedMetric)}
+                      {item.label}
                     </text>
                   </g>
                 );
               })}
 
-              <path 
-                d={areaPath} 
-                fill={`url(#grad-${selectedMetric})`}
-                style={{ transition: 'd 0.3s ease-out' }}
-              />
+              {selectedMetric !== 'all' ? (
+                chartData[selectedMetric] && (
+                  <path 
+                    d={chartData[selectedMetric].areaPath} 
+                    fill={`url(#grad-${selectedMetric})`}
+                    style={{ transition: 'd 0.3s ease-out' }}
+                  />
+                )
+              ) : null}
 
-              <path 
-                d={linePath} 
-                fill="none" 
-                stroke={selectedMetric === 'pv' ? 'var(--colors-brand-pink)' : selectedMetric === 'uv' ? 'var(--colors-brand-teal)' : 'var(--colors-brand-ochre)'} 
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ transition: 'd 0.3s ease-out' }}
-              />
+              {selectedMetric === 'all' ? (
+                ['pv', 'uv', 'clicks', 'revenue'].map(m => {
+                  const mColor = m === 'pv' ? 'var(--colors-brand-pink)' : m === 'uv' ? 'var(--colors-brand-teal)' : m === 'clicks' ? 'var(--colors-brand-mint)' : 'var(--colors-brand-ochre)';
+                  return chartData[m] && (
+                    <path 
+                      key={m}
+                      d={chartData[m].linePath} 
+                      fill="none" 
+                      stroke={mColor} 
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ transition: 'd 0.3s ease-out' }}
+                    />
+                  );
+                })
+              ) : (
+                chartData[selectedMetric] && (
+                  <path 
+                    d={chartData[selectedMetric].linePath} 
+                    fill="none" 
+                    stroke={selectedMetric === 'pv' ? 'var(--colors-brand-pink)' : selectedMetric === 'uv' ? 'var(--colors-brand-teal)' : selectedMetric === 'clicks' ? 'var(--colors-brand-mint)' : 'var(--colors-brand-ochre)'} 
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ transition: 'd 0.3s ease-out' }}
+                  />
+                )
+              )}
 
               <line 
                 x1={paddingLeft} 
                 y1={220 - paddingBottom} 
-                x2={620 - paddingRight} 
+                x2={1000 - paddingRight} 
                 y2={220 - paddingBottom} 
                 stroke="var(--colors-muted-soft)" 
                 strokeWidth="1"
               />
 
-              {points.map((p, i) => {
-                if (!shouldShowLabel(i, points.length)) return null;
+              {activePoints.map((p, i) => {
+                if (!shouldShowLabel(i, activePoints.length)) return null;
                 return (
                   <text 
                     key={i}
@@ -432,8 +492,8 @@ const AnalyticsDashboard = () => {
                 );
               })}
 
-              {points.map((p, i) => {
-                const colWidth = chartWidth / Math.max(points.length, 1);
+              {activePoints.map((p, i) => {
+                const colWidth = chartWidth / Math.max(activePoints.length, 1);
                 return (
                   <rect
                     key={i}
@@ -449,11 +509,11 @@ const AnalyticsDashboard = () => {
                 );
               })}
 
-              {hoveredIndex !== null && points[hoveredIndex] && (
+              {hoveredIndex !== null && activePoints[hoveredIndex] && (
                 <line 
-                  x1={points[hoveredIndex].x} 
+                  x1={activePoints[hoveredIndex].x} 
                   y1={paddingTop} 
-                  x2={points[hoveredIndex].x} 
+                  x2={activePoints[hoveredIndex].x} 
                   y2={220 - paddingBottom} 
                   stroke="var(--colors-muted-soft)" 
                   strokeDasharray="3 3" 
@@ -461,58 +521,127 @@ const AnalyticsDashboard = () => {
                 />
               )}
 
-              {points.map((p, i) => {
-                const isHovered = hoveredIndex === i;
-                const metricColor = selectedMetric === 'pv' ? 'var(--colors-brand-pink)' : selectedMetric === 'uv' ? 'var(--colors-brand-teal)' : 'var(--colors-brand-ochre)';
-                return (
-                  <circle 
-                    key={i}
-                    cx={p.x}
-                    cy={p.y}
-                    r={isHovered ? 6 : 3.5}
-                    fill="var(--colors-canvas)"
-                    stroke={metricColor}
-                    strokeWidth={isHovered ? 3 : 2}
-                    style={{ transition: 'r 0.15s ease-out, stroke-width 0.15s ease-out' }}
-                    pointerEvents="none"
-                  />
-                );
-              })}
+              {selectedMetric === 'all' ? (
+                ['pv', 'uv', 'clicks', 'revenue'].map(m => {
+                  const mColor = m === 'pv' ? 'var(--colors-brand-pink)' : m === 'uv' ? 'var(--colors-brand-teal)' : m === 'clicks' ? 'var(--colors-brand-mint)' : 'var(--colors-brand-ochre)';
+                  const pts = chartData[m]?.points || [];
+                  const p = pts[hoveredIndex];
+                  if (!p) return null;
+                  return (
+                    <circle 
+                      key={m}
+                      cx={p.x}
+                      cy={p.y}
+                      r={5}
+                      fill="var(--colors-canvas)"
+                      stroke={mColor}
+                      strokeWidth={3}
+                      pointerEvents="none"
+                    />
+                  );
+                })
+              ) : (
+                activePoints.map((p, i) => {
+                  const isHovered = hoveredIndex === i;
+                  const metricColor = selectedMetric === 'pv' ? 'var(--colors-brand-pink)' : selectedMetric === 'uv' ? 'var(--colors-brand-teal)' : selectedMetric === 'clicks' ? 'var(--colors-brand-mint)' : 'var(--colors-brand-ochre)';
+                  return (
+                    <circle 
+                      key={i}
+                      cx={p.x}
+                      cy={p.y}
+                      r={isHovered ? 6 : 3.5}
+                      fill="var(--colors-canvas)"
+                      stroke={metricColor}
+                      strokeWidth={isHovered ? 3 : 2}
+                      style={{ transition: 'r 0.15s ease-out, stroke-width 0.15s ease-out' }}
+                      pointerEvents="none"
+                    />
+                  );
+                })
+              )}
 
-              {hoveredIndex !== null && dailyPerformance[hoveredIndex] && points[hoveredIndex] && (
+              {hoveredIndex !== null && dailyPerformance[hoveredIndex] && activePoints[hoveredIndex] && (
                 <g style={{ pointerEvents: 'none' }}>
-                  <rect 
-                    x={points[hoveredIndex].x - 65} 
-                    y={Math.max(points[hoveredIndex].y - 52, 5)} 
-                    width="130" 
-                    height="40" 
-                    rx="6" 
-                    fill="var(--colors-surface-dark)" 
-                    opacity="0.95" 
-                  />
-                  <text 
-                    x={points[hoveredIndex].x} 
-                    y={Math.max(points[hoveredIndex].y - 38, 19)} 
-                    fill="var(--colors-on-dark)" 
-                    fontSize="9" 
-                    fontWeight="600" 
-                    textAnchor="middle"
-                  >
-                    {dailyPerformance[hoveredIndex].date}
-                  </text>
-                  <text 
-                    x={points[hoveredIndex].x} 
-                    y={Math.max(points[hoveredIndex].y - 22, 35)} 
-                    fill={selectedMetric === 'pv' ? 'var(--colors-brand-pink)' : selectedMetric === 'uv' ? 'var(--colors-brand-mint)' : 'var(--colors-brand-ochre)'} 
-                    fontSize="11" 
-                    fontWeight="700" 
-                    textAnchor="middle"
-                  >
-                    {selectedMetric === 'revenue' 
-                      ? `₩${dailyPerformance[hoveredIndex].revenue.toLocaleString()}` 
-                      : `${dailyPerformance[hoveredIndex][selectedMetric].toLocaleString()} ${selectedMetric === 'pv' ? 'PV' : '명'}`
-                    }
-                  </text>
+                  {selectedMetric === 'all' ? (
+                    <g>
+                      <rect 
+                        x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 : activePoints[hoveredIndex].x + 15} 
+                        y={20} 
+                        width="160" 
+                        height="130" 
+                        rx="8" 
+                        fill="var(--colors-surface-dark)" 
+                        opacity="0.96" 
+                        stroke="rgba(255,255,255,0.1)"
+                        strokeWidth="1"
+                      />
+                      <text 
+                        x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 80 : activePoints[hoveredIndex].x + 15 + 80} 
+                        y={38} 
+                        fill="var(--colors-on-dark)" 
+                        fontSize="11" 
+                        fontWeight="700" 
+                        textAnchor="middle"
+                      >
+                        {dailyPerformance[hoveredIndex].date}
+                      </text>
+                      
+                      {/* PV row */}
+                      <circle cx={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 20 : activePoints[hoveredIndex].x + 15 + 20} cy={58} r="4" fill="var(--colors-brand-pink)" />
+                      <text x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 32 : activePoints[hoveredIndex].x + 15 + 32} y={62} fill="var(--colors-muted-soft)" fontSize="10" fontWeight="500">페이지뷰 (PV):</text>
+                      <text x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 145 : activePoints[hoveredIndex].x + 15 + 145} y={62} fill="#ffffff" fontSize="10" fontWeight="700" textAnchor="end">{(dailyPerformance[hoveredIndex].pv || 0).toLocaleString()}</text>
+                      
+                      {/* UV row */}
+                      <circle cx={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 20 : activePoints[hoveredIndex].x + 15 + 20} cy={78} r="4" fill="var(--colors-brand-teal)" />
+                      <text x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 32 : activePoints[hoveredIndex].x + 15 + 32} y={82} fill="var(--colors-muted-soft)" fontSize="10" fontWeight="500">순방문자 (UV):</text>
+                      <text x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 145 : activePoints[hoveredIndex].x + 15 + 145} y={82} fill="#ffffff" fontSize="10" fontWeight="700" textAnchor="end">{(dailyPerformance[hoveredIndex].uv || 0).toLocaleString()}</text>
+
+                      {/* Clicks row */}
+                      <circle cx={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 20 : activePoints[hoveredIndex].x + 15 + 20} cy={98} r="4" fill="var(--colors-brand-mint)" />
+                      <text x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 32 : activePoints[hoveredIndex].x + 15 + 32} y={102} fill="var(--colors-muted-soft)" fontSize="10" fontWeight="500">클릭활동량:</text>
+                      <text x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 145 : activePoints[hoveredIndex].x + 15 + 145} y={102} fill="#ffffff" fontSize="10" fontWeight="700" textAnchor="end">{(dailyPerformance[hoveredIndex].clicks || 0).toLocaleString()}</text>
+
+                      {/* Revenue row */}
+                      <circle cx={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 20 : activePoints[hoveredIndex].x + 15 + 20} cy={118} r="4" fill="var(--colors-brand-ochre)" />
+                      <text x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 32 : activePoints[hoveredIndex].x + 15 + 32} y={122} fill="var(--colors-muted-soft)" fontSize="10" fontWeight="500">기여매출액:</text>
+                      <text x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 145 : activePoints[hoveredIndex].x + 15 + 145} y={122} fill="var(--colors-brand-ochre)" fontSize="10" fontWeight="700" textAnchor="end">₩{(dailyPerformance[hoveredIndex].revenue || 0).toLocaleString()}</text>
+                    </g>
+                  ) : (
+                    <g>
+                      <rect 
+                        x={activePoints[hoveredIndex].x - 65} 
+                        y={Math.max(activePoints[hoveredIndex].y - 52, 5)} 
+                        width="130" 
+                        height="40" 
+                        rx="6" 
+                        fill="var(--colors-surface-dark)" 
+                        opacity="0.95" 
+                      />
+                      <text 
+                        x={activePoints[hoveredIndex].x} 
+                        y={Math.max(activePoints[hoveredIndex].y - 38, 19)} 
+                        fill="var(--colors-on-dark)" 
+                        fontSize="9" 
+                        fontWeight="600" 
+                        textAnchor="middle"
+                      >
+                        {dailyPerformance[hoveredIndex].date}
+                      </text>
+                      <text 
+                        x={activePoints[hoveredIndex].x} 
+                        y={Math.max(activePoints[hoveredIndex].y - 22, 35)} 
+                        fill={selectedMetric === 'pv' ? 'var(--colors-brand-pink)' : selectedMetric === 'uv' ? 'var(--colors-brand-teal)' : selectedMetric === 'clicks' ? 'var(--colors-brand-mint)' : 'var(--colors-brand-ochre)'} 
+                        fontSize="11" 
+                        fontWeight="700" 
+                        textAnchor="middle"
+                      >
+                        {selectedMetric === 'revenue' 
+                          ? `₩${dailyPerformance[hoveredIndex].revenue.toLocaleString()}` 
+                          : `${(dailyPerformance[hoveredIndex][selectedMetric] || 0).toLocaleString()} ${selectedMetric === 'pv' ? 'PV' : selectedMetric === 'clicks' ? '회' : '명'}`
+                        }
+                      </text>
+                    </g>
+                  )}
                 </g>
               )}
             </svg>
@@ -626,8 +755,7 @@ const AnalyticsDashboard = () => {
         </div>
       </div>
 
-      {/* LF Mall 퍼널 전환율 분석 */}
-      <window.FunnelChart displayFunnel={displayFunnel} viewMode={viewMode} />
+
 
       {/* Campaign Cards Grid */}
       <window.CampaignGrid 
