@@ -254,8 +254,8 @@ function seedServerDatabase() {
   return events;
 }
 
-// Initial seeding commented out for production clean slate
-// seedServerDatabase();
+// Initial seeding enabled to guarantee persistent rich history on cold starts
+seedServerDatabase();
 
 // --- HELPER FUNCTION: EXTRACT EXHIBITION ID FROM URL ---
 function extractExhibitionId(urlPath) {
