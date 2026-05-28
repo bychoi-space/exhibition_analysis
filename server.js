@@ -7,6 +7,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const campaignTitleResolver = require('./campaignTitleResolver');
+const campaignAttributionResolver = require('./campaignAttributionResolver');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -176,7 +177,7 @@ async function fetchRecentLogs() {
 }
 
 async function saveRecentLogs(logs) {
-  memoryRecentLogs = logs.slice(-25);
+  memoryRecentLogs = logs.slice(-2000);
   await redisSet('lfmall:recent_logs', memoryRecentLogs);
 }
 
@@ -301,8 +302,25 @@ app.post('/api/collect', async (req, res) => {
     }
   }
 
-  // Determine which exhibition this event belongs to (last touch attribution lookup)
-  const targetExId = exhibitionId || attributions[finalSessionId];
+  // Load recent logs for attribution lookup and history tracking
+  const recentLogs = await fetchRecentLogs();
+
+  // Determine which exhibition this event belongs to
+  let targetExId = exhibitionId || attributions[finalSessionId];
+
+  // 7-Days E-Commerce Time-Window Attribution Model (For PURCHASE Events)
+  if (finalType === 'PURCHASE') {
+    const attributedExId = campaignAttributionResolver.findAttributedExhibition(
+      recentLogs,
+      finalUserId,
+      safeExtra.productId,
+      finalUrl,
+      ts
+    );
+    if (attributedExId) {
+      targetExId = attributedExId;
+    }
+  }
 
   // Extract YYYY-MM-DD for sharding
   const dateObj = new Date(ts);
@@ -348,8 +366,7 @@ app.post('/api/collect', async (req, res) => {
     await saveDailyStats(dateStr, dailyStats);
   }
 
-  // Update recent logs (FIFO array of 25)
-  const recentLogs = await fetchRecentLogs();
+  // Update recent logs (FIFO array of 2000)
   recentLogs.push({
     timestamp: ts,
     type: finalType,
