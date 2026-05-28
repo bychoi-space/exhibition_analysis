@@ -50,9 +50,13 @@ function redisGet(key) {
       hostname: url.hostname,
       path: url.pathname,
       port: 443,
-      headers: { 'Authorization': `Bearer ${UPSTASH_REDIS_REST_TOKEN}` }
+      headers: { 
+        'Authorization': `Bearer ${UPSTASH_REDIS_REST_TOKEN}`,
+        'Accept': 'application/json; charset=utf-8'
+      }
     };
     const req = https.request(options, (res) => {
+      res.setEncoding('utf8');
       let data = '';
       res.on('data', (chunk) => data += chunk);
       res.on('end', () => {
@@ -80,6 +84,7 @@ function redisSet(key, value) {
   return new Promise((resolve) => {
     const body = JSON.stringify(["SET", key, JSON.stringify(value)]);
     const url = new URL('/', UPSTASH_REDIS_REST_URL);
+    const bodyBuffer = Buffer.from(body, 'utf8');
     const options = {
       method: 'POST',
       hostname: url.hostname,
@@ -87,11 +92,12 @@ function redisSet(key, value) {
       port: 443,
       headers: {
         'Authorization': `Bearer ${UPSTASH_REDIS_REST_TOKEN}`,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body)
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Length': bodyBuffer.length
       }
     };
     const req = https.request(options, (res) => {
+      res.setEncoding('utf8');
       let data = '';
       res.on('data', (chunk) => data += chunk);
       res.on('end', () => resolve(data));
@@ -100,7 +106,7 @@ function redisSet(key, value) {
       console.warn('[REDIS-SET-ERROR]', key, e.message);
       resolve(null);
     });
-    req.write(body);
+    req.write(bodyBuffer);
     req.end();
   });
 }
