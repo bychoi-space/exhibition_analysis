@@ -103,63 +103,15 @@ let isMemoryInitialized = false;
 // Warm-up and deterministic seed memory instantly at startup!
 function initializeMemoryStore() {
   if (isMemoryInitialized) return;
-  console.log('[LOCAL-MEMORY] Initializing memory store with deterministic 5-day historic seed data...');
+  console.log('[LOCAL-MEMORY] Initializing memory store with pure empty state for 100% Real Live data only...');
   
-  memoryMetadata = {
-    "106251": { id: "106251", title: "(더캐리) 더캐리 패밀리 임직원 시크릿 특가전", brand: "더캐리" },
-    "111584": { id: "111584", title: "[OUTLET SHOES] 이달의 베스트 슈즈", brand: "LF MALL" }
-  };
-  
-  const dates = getPastDateStrings(5);
-  const exhibitions = [
-    { id: "106251", basePv: 250, baseUv: 180, baseClicks: 60, baseRev: 1800000, baseOrders: 5, avgStaySec: 42, bouncePct: 32 },
-    { id: "111584", basePv: 180, baseUv: 120, baseClicks: 35, baseRev: 980000, baseOrders: 3, avgStaySec: 35, bouncePct: 40 }
-  ];
-  
-  for (let i = 0; i < dates.length; i++) {
-    const dateStr = dates[i];
-    const dayFactor = 1.0 + (i * 0.15);
-    const dayStats = {};
-    
-    exhibitions.forEach(ex => {
-      const pv = Math.round(ex.basePv * dayFactor);
-      const uv = Math.round(ex.baseUv * dayFactor);
-      const clicks = Math.round(ex.baseClicks * dayFactor);
-      const revenue = Math.round(ex.baseRev * dayFactor);
-      const orderCount = Math.round(ex.baseOrders * dayFactor);
-      
-      const uvSet = Array.from({ length: uv }, (_, j) => `user_${ex.id}_day${i}_${j}`);
-      
-      const sessionTimes = {};
-      const totalSessions = Math.round(uv * 1.3);
-      const singlePageSessionsCount = Math.round(totalSessions * (ex.bouncePct / 100));
-      
-      for (let s = 0; s < totalSessions; s++) {
-        const sessId = `sess_${ex.id}_day${i}_${s}`;
-        const baseTs = new Date(dateStr).getTime() + (s * 60000);
-        
-        if (s < singlePageSessionsCount) {
-          sessionTimes[sessId] = [baseTs];
-        } else {
-          sessionTimes[sessId] = [baseTs, baseTs + (ex.avgStaySec * 1000)];
-        }
-      }
-      
-      dayStats[ex.id] = {
-        pv,
-        uvSet,
-        clicks,
-        revenue,
-        sessionTimes,
-        orderCount
-      };
-    });
-    
-    memoryDailyStats[dateStr] = dayStats;
-  }
+  memoryMetadata = {};
+  memoryDailyStats = {};
+  memoryRecentLogs = [];
+  memorySessionAttributions = {};
   
   isMemoryInitialized = true;
-  console.log('[LOCAL-MEMORY] Memory store pre-seeded successfully.');
+  console.log('[LOCAL-MEMORY] Memory store initialized empty.');
 }
 
 // Trigger memory initialization instantly at startup

@@ -1,5 +1,11 @@
 # Cursor AI Coding Rules - Clay.com Aesthetic (GTM Analytics System)
 
+## 🚨 100% Real-Time Live Data Policy (Non-Negotiable Highest Priority)
+- **NO FAKE, MOCK, SIMULATED, OR SEEDED HISTORICAL DATA IS ALLOWED ANYWHERE IN THIS SYSTEM.**
+- The system must function strictly and purely as a real production-grade tool utilizing **100% real live telemetry data** received directly from GTM (`tracker.js`).
+- Under no circumstances should simulated, generated, or mock history be created, seeded, or restored. Any database resets or initializations must start with an absolute zero-state (empty structures `{}`) and only accumulate real-time visitor actions.
+- The UI, server endpoints, and databases must reflect only genuine real-time collected telemetry without exception.
+
 ## 🌐 Language Policy (Non-Negotiable)
 - **Korean (국문) is the absolute standard** for all documentation, system specifications, implementation plans, user guides, UI labels, dashboard metrics, and user interactions.
 - All code comments, logs, and system explanations must also prioritize Korean.
