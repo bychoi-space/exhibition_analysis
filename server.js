@@ -36,21 +36,67 @@ const DB_DIR = isServerless
   ? path.join('/tmp', 'db_store') 
   : path.join(__dirname, 'db_store');
 
+const https = require('https');
+
 let useInMemoryFallback = false;
 const inMemoryDb = {}; // Local memory cache
 
-// --- CLOUD DATABASE PERSISTENCE LAYER (kvdb.io) ---
+// --- CLOUD DATABASE PERSISTENCE LAYER (kvdb.io via Native HTTPS) ---
 const KV_STORE_URL = 'https://kvdb.io/m9zWd6x5y7p3q2r8s1t5/lfmall_analytics_events';
 let globalEventsCache = null;
 
+function httpsGet(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', (chunk) => data += chunk);
+      res.on('end', () => {
+        if (res.statusCode === 404) return resolve([]);
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          return reject(new Error(`HTTP Error ${res.statusCode}`));
+        }
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          resolve([]); // Fallback to empty on parse errors
+        }
+      });
+    }).on('error', reject);
+  });
+}
+
+function httpsPut(url, body) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const options = {
+      method: 'PUT',
+      hostname: urlObj.hostname,
+      path: urlObj.pathname + urlObj.search,
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => data += chunk);
+      res.on('end', () => {
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          return reject(new Error(`HTTP Error ${res.statusCode}`));
+        }
+        resolve(data);
+      });
+    }).on('error', reject);
+
+    req.write(body);
+    req.end();
+  });
+}
+
 async function getPersistentEvents() {
   try {
-    const res = await fetch(KV_STORE_URL);
-    if (!res.ok) {
-      if (res.status === 404) return [];
-      throw new Error(`HTTP Error ${res.status}`);
-    }
-    const data = await res.json();
+    const data = await httpsGet(KV_STORE_URL);
     return Array.isArray(data) ? data : [];
   } catch (e) {
     console.warn("[PERSISTENCE-WARNING] Failed to fetch events from cloud database:", e.message);
@@ -60,11 +106,8 @@ async function getPersistentEvents() {
 
 async function savePersistentEvents(events) {
   try {
-    await fetch(KV_STORE_URL, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(events)
-    });
+    const body = JSON.stringify(events);
+    await httpsPut(KV_STORE_URL, body);
     console.log(`[PERSISTENCE] Successfully synced ${events.length} events to cloud database.`);
   } catch (e) {
     console.warn("[PERSISTENCE-WARNING] Failed to sync events to cloud database:", e.message);
