@@ -93,153 +93,24 @@ function httpsPut(url, body) {
   });
 }
 
-// --- DUAL HYBRID STORAGE ENGINE HELPERS ---
-function writeLocalFile(filename, content) {
-  try {
-    const filePath = path.join(DB_DIR, filename);
-    fs.writeFileSync(filePath, JSON.stringify(content, null, 2));
-  } catch (err) {
-    console.error(`[LOCAL-DB] Failed to write file ${filename}:`, err.message);
-  }
-}
+// --- MEMORY-FIRST CACHE & BACKGROUND SYNC ENGINE ---
+let memoryMetadata = {};
+let memoryDailyStats = {};
+let memoryRecentLogs = [];
+let memorySessionAttributions = {};
+let isMemoryInitialized = false;
 
-function readLocalFile(filename, fallback) {
-  try {
-    const filePath = path.join(DB_DIR, filename);
-    if (fs.existsSync(filePath)) {
-      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    }
-  } catch (err) {
-    console.error(`[LOCAL-DB] Failed to read file ${filename}:`, err.message);
-  }
-  return fallback;
-}
-
-async function fetchMetadata() {
-  if (!isServerless) {
-    return readLocalFile('metadata.json', {});
-  }
-  try {
-    const data = await httpsGet(`${KV_BASE_URL}/metadata`);
-    return (data && typeof data === 'object' && !Array.isArray(data)) ? data : {};
-  } catch (e) {
-    console.warn("[PERSISTENCE] Failed to fetch metadata:", e.message);
-    return {};
-  }
-}
-
-async function saveMetadata(meta) {
-  if (!isServerless) {
-    writeLocalFile('metadata.json', meta);
-    return;
-  }
-  try {
-    await httpsPut(`${KV_BASE_URL}/metadata`, JSON.stringify(meta));
-  } catch (e) {
-    console.warn("[PERSISTENCE] Failed to save metadata:", e.message);
-  }
-}
-
-async function fetchDailyStats(dateStr) {
-  if (!isServerless) {
-    return readLocalFile(`daily_stats_${dateStr}.json`, {});
-  }
-  try {
-    const data = await httpsGet(`${KV_BASE_URL}/daily_stats_${dateStr}`);
-    return (data && typeof data === 'object' && !Array.isArray(data)) ? data : {};
-  } catch (e) {
-    console.warn(`[PERSISTENCE] Failed to fetch daily stats for ${dateStr}:`, e.message);
-    return {};
-  }
-}
-
-async function saveDailyStats(dateStr, stats) {
-  if (!isServerless) {
-    writeLocalFile(`daily_stats_${dateStr}.json`, stats);
-    return;
-  }
-  try {
-    await httpsPut(`${KV_BASE_URL}/daily_stats_${dateStr}`, JSON.stringify(stats));
-  } catch (e) {
-    console.warn(`[PERSISTENCE] Failed to save daily stats for ${dateStr}:`, e.message);
-  }
-}
-
-async function fetchRecentLogs() {
-  if (!isServerless) {
-    return readLocalFile('recent_logs.json', []);
-  }
-  try {
-    const data = await httpsGet(`${KV_BASE_URL}/recent_logs`);
-    return Array.isArray(data) ? data : [];
-  } catch (e) {
-    return [];
-  }
-}
-
-async function saveRecentLogs(logs) {
-  const trimmed = logs.slice(-25);
-  if (!isServerless) {
-    writeLocalFile('recent_logs.json', trimmed);
-    return;
-  }
-  try {
-    await httpsPut(`${KV_BASE_URL}/recent_logs`, JSON.stringify(trimmed));
-  } catch (e) {}
-}
-
-async function fetchSessionAttributions() {
-  if (!isServerless) {
-    return readLocalFile('session_attributions.json', {});
-  }
-  try {
-    const data = await httpsGet(`${KV_BASE_URL}/session_attributions`);
-    return (data && typeof data === 'object' && !Array.isArray(data)) ? data : {};
-  } catch (e) {
-    return {};
-  }
-}
-
-async function saveSessionAttributions(attributions) {
-  const keys = Object.keys(attributions);
-  const trimmed = keys.length > 200 
-    ? keys.slice(-200).reduce((acc, k) => { acc[k] = attributions[k]; return acc; }, {})
-    : attributions;
-
-  if (!isServerless) {
-    writeLocalFile('session_attributions.json', trimmed);
-    return;
-  }
-  try {
-    await httpsPut(`${KV_BASE_URL}/session_attributions`, JSON.stringify(trimmed));
-  } catch (e) {}
-}
-
-function getPastDateStrings(count) {
-  const dates = [];
-  const now = new Date();
-  for (let i = count - 1; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    dates.push(`${y}-${m}-${day}`);
-  }
-  return dates;
-}
-
-// Deterministic Seeding Logic
-async function seedServerDatabase() {
-  console.log('[SEED] Seeding database with deterministic, highly stable 5-day historic dataset...');
+// Warm-up and deterministic seed memory instantly at startup!
+function initializeMemoryStore() {
+  if (isMemoryInitialized) return;
+  console.log('[LOCAL-MEMORY] Initializing memory store with deterministic 5-day historic seed data...');
   
-  const metadata = {
+  memoryMetadata = {
     "106251": { id: "106251", title: "(DAKS) [명품단독] 닥스 여성 서머 시즌 메가 베스트 기획전", brand: "DAKS" },
     "111584": { id: "111584", title: "[OUTLET SHOES] 이달의 베스트 슈즈", brand: "LF MALL" },
     "992831": { id: "992831", title: "(HAZZYS) [여름휴가] 헤지스 남성 린넨 셔츠 특가전", brand: "HAZZYS" },
     "301": { id: "301", title: "(JILL BY JILLSTUART) 질바이질스튜어트 백팩 & 슈즈 기획전", brand: "JILL BY JILLSTUART" }
   };
-  
-  await saveMetadata(metadata);
   
   const dates = getPastDateStrings(5);
   const exhibitions = [
@@ -251,7 +122,7 @@ async function seedServerDatabase() {
   
   for (let i = 0; i < dates.length; i++) {
     const dateStr = dates[i];
-    const dayFactor = 1.0 + (i * 0.15); // Deterministic organic growth factor
+    const dayFactor = 1.0 + (i * 0.15);
     const dayStats = {};
     
     exhibitions.forEach(ex => {
@@ -288,29 +159,111 @@ async function seedServerDatabase() {
       };
     });
     
-    await saveDailyStats(dateStr, dayStats);
+    memoryDailyStats[dateStr] = dayStats;
   }
   
-  console.log('[SEED] Deterministic seeding completed successfully.');
+  isMemoryInitialized = true;
+  console.log('[LOCAL-MEMORY] Memory store pre-seeded successfully.');
 }
 
-let dbInitPromise = null;
+// Trigger memory initialization instantly at startup
+initializeMemoryStore();
+
+// --- DUAL HYBRID STORAGE ENGINE HELPERS (BACKGROUND ONLY) ---
+function writeLocalFile(filename, content) {
+  try {
+    const filePath = path.join(DB_DIR, filename);
+    fs.writeFileSync(filePath, JSON.stringify(content, null, 2));
+  } catch (err) {}
+}
+
+function readLocalFile(filename, fallback) {
+  try {
+    const filePath = path.join(DB_DIR, filename);
+    if (fs.existsSync(filePath)) {
+      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    }
+  } catch (err) {}
+  return fallback;
+}
+
+// Background sync triggers - completely non-blocking!
+async function backgroundSync(key, data, filename) {
+  if (!isServerless) {
+    writeLocalFile(filename, data);
+    return;
+  }
+  try {
+    await httpsPut(`${KV_BASE_URL}/${key}`, JSON.stringify(data));
+  } catch (e) {
+    console.warn(`[BACKGROUND-SYNC-WARNING] Failed to sync ${key} in background:`, e.message);
+  }
+}
+
+async function fetchMetadata() {
+  return memoryMetadata;
+}
+
+async function saveMetadata(meta) {
+  memoryMetadata = meta;
+  backgroundSync('metadata', meta, 'metadata.json');
+}
+
+async function fetchDailyStats(dateStr) {
+  return memoryDailyStats[dateStr] || {};
+}
+
+async function saveDailyStats(dateStr, stats) {
+  memoryDailyStats[dateStr] = stats;
+  backgroundSync(`daily_stats_${dateStr}`, stats, `daily_stats_${dateStr}.json`);
+}
+
+async function fetchRecentLogs() {
+  return memoryRecentLogs;
+}
+
+async function saveRecentLogs(logs) {
+  memoryRecentLogs = logs.slice(-25);
+  backgroundSync('recent_logs', memoryRecentLogs, 'recent_logs.json');
+}
+
+async function fetchSessionAttributions() {
+  return memorySessionAttributions;
+}
+
+async function saveSessionAttributions(attributions) {
+  memorySessionAttributions = attributions;
+  backgroundSync('session_attributions', attributions, 'session_attributions.json');
+}
+
+function getPastDateStrings(count) {
+  const dates = [];
+  const now = new Date();
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    dates.push(`${y}-${m}-${day}`);
+  }
+  return dates;
+}
+
+// Deterministic Seeding Logic (Triggered primarily on reset)
+async function seedServerDatabase() {
+  isMemoryInitialized = false;
+  initializeMemoryStore();
+  
+  // Background sync everything
+  await saveMetadata(memoryMetadata);
+  const dates = Object.keys(memoryDailyStats);
+  for (const dateStr of dates) {
+    await saveDailyStats(dateStr, memoryDailyStats[dateStr]);
+  }
+}
 
 async function ensureDbInitialized() {
-  if (dbInitPromise) return dbInitPromise;
-  
-  dbInitPromise = (async () => {
-    console.log("[PERSISTENCE] Checking database initialization...");
-    const meta = await fetchMetadata();
-    if (Object.keys(meta).length === 0) {
-      console.log("[PERSISTENCE] Master metadata is empty. Seeding deterministic historic data...");
-      await seedServerDatabase();
-    } else {
-      console.log(`[PERSISTENCE] Database is already initialized with ${Object.keys(meta).length} master records.`);
-    }
-  })();
-  
-  return dbInitPromise;
+  initializeMemoryStore();
 }
 
 // --- HELPER FUNCTION: EXTRACT EXHIBITION ID FROM URL ---

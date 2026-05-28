@@ -5,46 +5,1111 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LFmall 기획전 성과 분석</title>
   <link rel="icon" type="image/png" href="./exhibition_analytics_icon.png">
+  
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
   <!-- Vanilla CSS Style -->
   <link rel="stylesheet" href="./style.css">
   
-  <!-- React & Babel Standalone via CDN (Safe from CORS on file://) -->
+  <!-- React & Babel Standalone via CDN (100% safe from browser local CORS blocks) -->
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <!-- Component Modules (Imported with type="text/babel" for standalone run) -->
-  <script type="text/babel" src="./components/Icons.js"></script>
-  <script type="text/babel" src="./components/FunnelChart.js"></script>
-  <script type="text/babel" src="./components/CampaignGrid.js"></script>
-  <script type="text/babel" src="./components/Dashboard.js"></script>
 </head>
 <body>
   
   <div id="root"></div>
 
-  <!-- Bootstrapper / Orchestrator Script -->
+  <!-- Unified Standalone Babel Script -->
   <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    // ==========================================================================
+    // 1. INLINE CUSTOM SVG ICONS (Self-contained and CORS-safe)
+    // ==========================================================================
+    const IconBarChart = ({ size = 14 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10" /><line x1="12" x2="12" y1="20" y2="4" /><line x1="6" x2="6" y1="20" y2="14" /></svg>
+    );
+
+    const IconUsers = ({ size = 14, color }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+    );
+
+    const IconEye = ({ size = 14, color }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+    );
+
+    const IconClock = ({ size = 14, color }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+    );
+
+    const IconTrendingUp = ({ size = 14, color }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" /></svg>
+    );
+
+    const IconSparkles = ({ size = 14, color }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" /></svg>
+    );
+
+    const IconRefresh = ({ size = 12 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M3 21v-5h5" /></svg>
+    );
+
+    const IconZap = ({ size = 14, color }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+    );
+
+    const IconCursor = ({ size = 14, color }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z" /><path d="m13 13 6 6" /></svg>
+    );
+
+    const IconPlay = ({ size = 14 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+    );
+
+    const IconPause = ({ size = 14 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
+    );
+
+    const IconTrash = ({ size = 14 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+    );
+
+    const IconHelp = () => (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" x2="12.01" y1="17" y2="17" /></svg>
+    );
+
+    // ==========================================================================
+    // 2. FunnelChart COMPONENT (SVG Funnel Stage Visualizer)
+    // ==========================================================================
+    const FunnelChart = ({ displayFunnel, viewMode }) => {
+      return (
+        <div className="chart-card" style={{ marginBottom: 'var(--spacing-md)' }}>
+          <div>
+            <h3 className="title-md">
+              {viewMode === 'average' ? 'LF Mall 일 평균 퍼널 전환율 분석' : 'LF Mall 퍼널 전환율 분석 (Conversion Funnel)'}
+            </h3>
+            <p className="body-sm" style={{color: 'var(--colors-muted)'}}>
+              {viewMode === 'average' ? '고객 여정별 각 단계의 일 평균 인입 인원을 시각화합니다.' : '고객 여정의 메인 홈 진입부터 최종 주문 결제 완료까지의 퍼널 전환율을 시각화합니다.'}
+            </p>
+          </div>
+          <div className="svg-funnel-container" style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+            <svg viewBox="0 0 500 220" width="100%" height="100%">
+              {displayFunnel.map((step, idx) => {
+                const maxBarWidth = 310;
+                const barWidth = Math.max((step.rate / 100) * maxBarWidth, 20);
+                const barHeight = 24;
+                const xStart = 150;
+                const yStart = idx * 42 + 10;
+                const barColor = step.color;
+                return (
+                  <g key={step.name}>
+                    <text x="10" y={yStart + 16} fill="var(--colors-ink)" fontSize="11" fontWeight="600">
+                      {step.name}
+                    </text>
+                    <rect x={xStart} y={yStart} width={maxBarWidth} height={barHeight} fill="var(--colors-surface-soft)" rx="6" />
+                    <rect x={xStart} y={yStart} width={barWidth} height={barHeight} fill={barColor} rx="6" style={{ transition: 'width 0.5s ease-out' }} />
+                    <text x={xStart + Math.max(barWidth - 40, 10)} y={yStart + 16} fill={idx === 1 || idx === 4 ? '#ffffff' : 'var(--colors-ink)'} fontSize="11" fontWeight="700">
+                      {step.rate}%
+                    </text>
+                    <text x={xStart + maxBarWidth + 10} y={yStart + 16} fill="var(--colors-muted)" fontSize="12" fontWeight="500">
+                      {step.count.toLocaleString()} 명{viewMode === 'average' ? ' / 일' : ''}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        </div>
+      );
+    };
+
+    // ==========================================================================
+    // 3. CampaignGrid COMPONENT (Campaign ledger table/cards sorting)
+    // ==========================================================================
+    const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, isLoadingMore, setIsLoadingMore }) => {
+      const [layoutMode, setLayoutMode] = React.useState('list'); // Default to list!
+      const [sortField, setSortField] = React.useState('revenue'); // Default sorting field: revenue
+      const [sortDirection, setSortDirection] = React.useState('desc'); // Default: descending
+
+      const sortedPages = React.useMemo(() => {
+        if (!displayPages || displayPages.length === 0) return [];
+        const pagesCopy = [...displayPages];
+        pagesCopy.sort((a, b) => {
+          let aVal = a[sortField];
+          let bVal = b[sortField];
+
+          if (sortField === 'title') {
+            aVal = a.title.replace(/\([^)]+\)/, '').trim();
+            bVal = b.title.replace(/\([^)]+\)/, '').trim();
+          }
+          if (sortField === 'brand') {
+            const matchA = a.title.match(/\(([^)]+)\)/);
+            const matchB = b.title.match(/\(([^)]+)\)/);
+            aVal = matchA ? matchA[1] : 'LF MALL';
+            bVal = matchB ? matchB[1] : 'LF MALL';
+          }
+          if (sortField === 'avgStay') {
+            aVal = parseInt(a.avgStay) || 0;
+            bVal = parseInt(b.avgStay) || 0;
+          }
+          if (sortField === 'bounceRate') {
+            aVal = parseFloat(a.bounceRate) || 0;
+            bVal = parseFloat(b.bounceRate) || 0;
+          }
+          if (sortField === 'cvr') {
+            aVal = parseFloat(a.cvr) || 0;
+            bVal = parseFloat(b.cvr) || 0;
+          }
+
+          if (typeof aVal === 'string') {
+            return sortDirection === 'asc' ? aVal.localeCompare(bVal, 'ko') : bVal.localeCompare(aVal, 'ko');
+          } else {
+            return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+          }
+        });
+        return pagesCopy;
+      }, [displayPages, sortField, sortDirection]);
+
+      const handleSort = (field) => {
+        if (sortField === field) {
+          setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+        } else {
+          setSortField(field);
+          setSortDirection('desc');
+        }
+      };
+
+      const renderSortArrow = (field) => {
+        if (sortField !== field) return <span style={{ color: 'var(--colors-muted-soft)', marginLeft: '4px', fontSize: '10px' }}>⇅</span>;
+        return sortDirection === 'asc' 
+          ? <span style={{ color: 'var(--colors-brand-teal)', marginLeft: '4px', fontSize: '10px', fontWeight: 'bold' }}>▲</span> 
+          : <span style={{ color: 'var(--colors-brand-teal)', marginLeft: '4px', fontSize: '10px', fontWeight: 'bold' }}>▼</span>;
+      };
+
+      return (
+        <div className="chart-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: 'var(--spacing-md)' }}>
+            <div>
+              <h3 className="title-md">
+                {viewMode === 'average' ? '🔥 현재 운영 중인 실시간 기획전 성과 순위 (일 평균)' : '🔥 현재 운영 중인 실시간 기획전 성과 순위'}
+              </h3>
+              <p className="body-sm" style={{color: 'var(--colors-muted)', marginTop: '2px'}}>
+                {viewMode === 'average' ? '현재 활성화되어 있는 각 기획전별 일 평균 성과 지표 랭킹입니다.' : '현재 활성화되어 있는 각 기획전별 순 유저(UV), 체류시간, 전환율 및 기여 매출액 랭킹입니다.'}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <span className="caption-uppercase" style={{ backgroundColor: 'var(--colors-surface-soft)', color: 'var(--colors-brand-teal)', padding: '4px 10px', borderRadius: 'var(--rounded-pill)', fontSize: '11px', fontWeight: 700, border: '1px solid var(--colors-hairline)' }}>
+                총 {displayPages.length}개 운영 중
+              </span>
+              <div style={{ display: 'flex', backgroundColor: 'var(--colors-surface-strong)', padding: '3px', borderRadius: 'var(--rounded-pill)', border: '1px solid var(--colors-hairline)' }}>
+                <button
+                  onClick={() => setLayoutMode('card')}
+                  style={{
+                    border: 'none',
+                    background: layoutMode === 'card' ? 'var(--colors-canvas)' : 'none',
+                    color: layoutMode === 'card' ? 'var(--colors-ink)' : 'var(--colors-muted)',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    padding: '4px 12px',
+                    borderRadius: 'var(--rounded-pill)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  🎴 카드형
+                </button>
+                <button
+                  onClick={() => setLayoutMode('list')}
+                  style={{
+                    border: 'none',
+                    background: layoutMode === 'list' ? 'var(--colors-canvas)' : 'none',
+                    color: layoutMode === 'list' ? 'var(--colors-ink)' : 'var(--colors-muted)',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    padding: '4px 12px',
+                    borderRadius: 'var(--rounded-pill)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  📝 리스트형
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {layoutMode === 'list' ? (
+            <div className="table-container" style={{ marginTop: 'var(--spacing-md)' }}>
+              <table className="analytics-table">
+                <thead>
+                  <tr style={{ userSelect: 'none' }}>
+                    <th style={{ width: '60px', textAlign: 'center' }}>순위</th>
+                    <th onClick={() => handleSort('brand')} style={{ width: '110px', cursor: 'pointer' }}>
+                      브랜드 {renderSortArrow('brand')}
+                    </th>
+                    <th onClick={() => handleSort('title')} style={{ cursor: 'pointer' }}>
+                      기획전 캠페인명 {renderSortArrow('title')}
+                    </th>
+                    <th onClick={() => handleSort('pv')} style={{ textAlign: 'right', cursor: 'pointer' }}>
+                      {viewMode === 'average' ? '일 평균 PV' : '누적 PV'} {renderSortArrow('pv')}
+                    </th>
+                    <th onClick={() => handleSort('uv')} style={{ textAlign: 'right', cursor: 'pointer' }}>
+                      {viewMode === 'average' ? '일 평균 UV' : '순 방문자'} {renderSortArrow('uv')}
+                    </th>
+                    <th onClick={() => handleSort('clicks')} style={{ textAlign: 'right', cursor: 'pointer' }}>
+                      {viewMode === 'average' ? '일 평균 클릭' : '클릭 활동'} {renderSortArrow('clicks')}
+                    </th>
+                    <th onClick={() => handleSort('avgStay')} style={{ textAlign: 'center', cursor: 'pointer' }}>
+                      체류시간 {renderSortArrow('avgStay')}
+                    </th>
+                    <th onClick={() => handleSort('bounceRate')} style={{ textAlign: 'center', cursor: 'pointer' }}>
+                      이탈률 {renderSortArrow('bounceRate')}
+                    </th>
+                    <th onClick={() => handleSort('cvr')} style={{ textAlign: 'center', cursor: 'pointer' }}>
+                      CVR {renderSortArrow('cvr')}
+                    </th>
+                    <th onClick={() => handleSort('revenue')} style={{ textAlign: 'right', cursor: 'pointer' }}>
+                      기여 매출액 {renderSortArrow('revenue')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedPages.slice(0, visibleCount).map((p, idx) => {
+                    const brandMatch = p.title.match(/\(([^)]+)\)/);
+                    const brandName = brandMatch ? brandMatch[1] : 'LF MALL';
+                    const cleanTitle = p.title.replace(/\([^)]+\)/, '').trim();
+
+                    const getBrandColor = (brand) => {
+                      const b = brand.toUpperCase();
+                      if (b.includes('DAKS') || b.includes('닥스')) return 'var(--colors-brand-pink)';
+                      if (b.includes('HAZZYS') || b.includes('헤지스')) return 'var(--colors-brand-teal)';
+                      if (b.includes('JILL') || b.includes('질스튜어트') || b.includes('질바이')) return 'var(--colors-brand-lavender)';
+                      if (b.includes('ATHE') || b.includes('아떼') || b.includes('바네사') || b.includes('앳코너')) return 'var(--colors-brand-ochre)';
+                      if (b.includes('LUXURY') || b.includes('명품') || b.includes('이자벨') || b.includes('바버') || b.includes('레오나드')) return 'var(--colors-brand-coral)';
+                      return 'var(--colors-brand-mint)';
+                    };
+
+                    const brandColor = getBrandColor(brandName);
+                    const isTop3 = idx < 3;
+                    const rankEmoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`;
+
+                    return (
+                      <tr key={p.id || idx}>
+                        <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: isTop3 ? '16px' : '13px' }}>
+                          {rankEmoji}
+                        </td>
+                        <td>
+                          <span style={{ 
+                            display: 'inline-block',
+                            fontSize: '11px', 
+                            fontWeight: '700', 
+                            padding: '2px 8px', 
+                            borderRadius: 'var(--rounded-pill)', 
+                            backgroundColor: `${brandColor}15`, 
+                            color: brandColor,
+                            border: `1px solid ${brandColor}30`,
+                            textAlign: 'center',
+                            width: '90px',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}>
+                            {brandName}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontWeight: '600', color: 'var(--colors-ink)', fontSize: '14px' }}>{cleanTitle}</span>
+                            <span style={{ fontSize: '11px', color: 'var(--colors-muted-soft)', marginTop: '2px' }}>ID: #{p.id}</span>
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: '500', fontFamily: 'monospace' }}>{p.pv.toLocaleString()}</td>
+                        <td style={{ textAlign: 'right', fontWeight: '500', fontFamily: 'monospace' }}>{p.uv.toLocaleString()}</td>
+                        <td style={{ textAlign: 'right', fontWeight: '600', color: 'var(--colors-brand-pink)', fontFamily: 'monospace' }}>{p.clicks.toLocaleString()}회</td>
+                        <td style={{ textAlign: 'center', fontWeight: '500' }}>{p.avgStay}</td>
+                        <td style={{ textAlign: 'center', color: parseFloat(p.bounceRate) > 50 ? 'var(--colors-warning)' : 'var(--colors-success)', fontWeight: '600' }}>🚪 {p.bounceRate}</td>
+                        <td style={{ textAlign: 'center', color: 'var(--colors-brand-teal)', fontWeight: '600' }}>🎯 {p.cvr}</td>
+                        <td style={{ textAlign: 'right', fontWeight: '700', color: 'var(--colors-ink)' }}>₩{p.revenue.toLocaleString()}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="campaign-grid">
+              {sortedPages.slice(0, visibleCount).map((p, idx) => {
+                const brandMatch = p.title.match(/\(([^)]+)\)/);
+                const brandName = brandMatch ? brandMatch[1] : 'LF MALL';
+                const cleanTitle = p.title.replace(/\([^)]+\)/, '').trim();
+
+                const getBrandColor = (brand) => {
+                  const b = brand.toUpperCase();
+                  if (b.includes('DAKS') || b.includes('닥스')) return 'var(--colors-brand-pink)';
+                  if (b.includes('HAZZYS') || b.includes('헤지스')) return 'var(--colors-brand-teal)';
+                  if (b.includes('JILL') || b.includes('질스튜어트') || b.includes('질바이')) return 'var(--colors-brand-lavender)';
+                  if (b.includes('ATHE') || b.includes('아떼') || b.includes('바네사') || b.includes('앳코너')) return 'var(--colors-brand-ochre)';
+                  if (b.includes('LUXURY') || b.includes('명품') || b.includes('이자벨') || b.includes('바버') || b.includes('레오나드')) return 'var(--colors-brand-coral)';
+                  return 'var(--colors-brand-mint)';
+                };
+
+                const brandColor = getBrandColor(brandName);
+
+                return (
+                  <div key={p.id || idx} className="campaign-card" style={{ '--card-brand-color': brandColor }}>
+                    <div className="campaign-card-brand-stripe" style={{ backgroundColor: brandColor }} />
+                    <div className="campaign-card-header">
+                      <span className="campaign-card-brand" style={{ backgroundColor: `${brandColor}15`, color: brandColor }}>
+                        {brandName}
+                      </span>
+                      <span className="campaign-card-id">#{p.id}</span>
+                    </div>
+                    <h4 className="campaign-card-title" title={p.title}>{cleanTitle}</h4>
+                    <div className="campaign-card-metrics">
+                      <div className="campaign-metric-item">
+                        <span className="campaign-metric-label">{viewMode === 'average' ? '일 평균 PV' : '누적 PV'}</span>
+                        <span className="campaign-metric-value">{p.pv.toLocaleString()}</span>
+                      </div>
+                      <div className="campaign-metric-item">
+                        <span className="campaign-metric-label">{viewMode === 'average' ? '일 평균 UV' : '순 방문자'}</span>
+                        <span className="campaign-metric-value">{p.uv.toLocaleString()}</span>
+                      </div>
+                      <div className="campaign-metric-item">
+                        <span className="campaign-metric-label">{viewMode === 'average' ? '일 평균 클릭' : '클릭 활동'}</span>
+                        <span className="campaign-metric-value" style={{ color: 'var(--colors-brand-pink)', fontWeight: 700 }}>
+                          {p.clicks.toLocaleString()}회
+                        </span>
+                      </div>
+                      <div className="campaign-metric-item">
+                        <span className="campaign-metric-label">체류 시간</span>
+                        <span className="campaign-metric-value">{p.avgStay}</span>
+                      </div>
+                    </div>
+                    <div className="campaign-card-footer">
+                      <div className="campaign-ratio-group">
+                        <span className="campaign-ratio-badge" title="이탈률">🚪 {p.bounceRate}</span>
+                        <span className="campaign-ratio-badge" title="구매 전환율 (CVR)" style={{ color: 'var(--colors-brand-teal)' }}>🎯 {p.cvr}</span>
+                      </div>
+                      <span className="campaign-revenue-badge">₩{p.revenue.toLocaleString()}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {visibleCount < displayPages.length && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 'var(--spacing-lg)' }}>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => {
+                  setIsLoadingMore(true);
+                  setTimeout(() => {
+                    setVisibleCount(prev => prev + 10);
+                    setIsLoadingMore(false);
+                  }, 800);
+                }}
+                disabled={isLoadingMore}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 24px',
+                  borderRadius: 'var(--rounded-pill)',
+                  fontWeight: 600,
+                  border: '1px solid var(--colors-hairline)',
+                  backgroundColor: 'var(--colors-canvas)',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                  transition: 'all 0.2s',
+                  color: 'var(--colors-ink)'
+                }}
+              >
+                {isLoadingMore ? (
+                  <>
+                    <span className="spinner"></span>
+                    <span>데이터 집계 분석 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>➕ 더 많은 기획전 성과 로드 ({displayPages.length - visibleCount}개 대기)</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // ==========================================================================
+    // 4. AnalyticsDashboard COMPONENT (Main Dashboard Page Orchestrator)
+    // ==========================================================================
+    const AnalyticsDashboard = () => {
+      const getFormattedDate = (offsetDays = 0) => {
+        const d = new Date();
+        d.setDate(d.getDate() - offsetDays);
+        return d.toISOString().split('T')[0];
+      };
+
+      const [datePreset, setDatePreset] = useState('7d');
+      const [startDate, setStartDate] = useState(getFormattedDate(7));
+      const [endDate, setEndDate] = useState(getFormattedDate(0));
+
+      const [stats, setStats] = useState({ totalPV: "0", uniqueUV: "0", totalClicks: "0", avgDuration: "0s", bounceRate: "0%", revenue: "₩0" });
+      const [funnel, setFunnel] = useState([]);
+      const [pages, setPages] = useState([]);
+      const [dailyPerformance, setDailyPerformance] = useState([]);
+      const [logs, setLogs] = useState([]);
+
+      const [visibleCount, setVisibleCount] = useState(20);
+      const [isLoadingMore, setIsLoadingMore] = useState(false);
+      const [viewMode, setViewMode] = useState('cumulative');
+
+      useEffect(() => {
+        setVisibleCount(20);
+      }, [startDate, endDate]);
+
+      // Detect Vercel vs Local serverless APIs to automatically fix local file:// and server CORS mismatches!
+      const isVercelLive = window.location.hostname.includes('vercel.app') || (window.location.hostname.includes('localhost') && window.location.port === '3000');
+      const apiBaseUrl = isVercelLive ? '' : 'https://exhibition-analysis-bychoi-s-projects.vercel.app';
+
+      const refresh = async () => {
+        try {
+          const res = await fetch(`${apiBaseUrl}/api/stats?startDate=${startDate}&endDate=${endDate}`);
+          const data = await res.json();
+          setStats(data.stats);
+          setFunnel(data.funnel);
+          setPages(data.pages);
+          setDailyPerformance(data.dailyPerformance || []);
+          setLogs(data.logs);
+        } catch (e) {
+          console.error("Failed to fetch live stats from server.", e);
+        }
+      };
+
+      useEffect(() => {
+        refresh();
+      }, [startDate, endDate]);
+
+      const handlePresetChange = (preset) => {
+        setDatePreset(preset);
+        const today = getFormattedDate(0);
+        setEndDate(today);
+        if (preset === '3d') setStartDate(getFormattedDate(3));
+        else if (preset === '7d') setStartDate(getFormattedDate(7));
+        else if (preset === '15d') setStartDate(getFormattedDate(15));
+        else if (preset === '30d') setStartDate(getFormattedDate(30));
+      };
+
+      const formatTime = (ts) => {
+        const d = new Date(ts);
+        return d.toTimeString().split(' ')[0];
+      };
+
+      const getPageTypeClass = (type) => `page-type-pill ${type.toLowerCase()}`;
+
+      const [selectedMetric, setSelectedMetric] = useState('all');
+      const [hoveredIndex, setHoveredIndex] = useState(null);
+
+      const paddingLeft = 50;
+      const paddingRight = 30;
+      const paddingTop = 20;
+      const paddingBottom = 30;
+      const chartWidth = 1000 - paddingLeft - paddingRight;
+      const chartHeight = 220 - paddingTop - paddingBottom;
+
+      const chartData = useMemo(() => {
+        if (!dailyPerformance || dailyPerformance.length === 0) return {};
+        const result = {};
+        const metricKeys = ['pv', 'uv', 'clicks', 'revenue'];
+        metricKeys.forEach(m => {
+          const values = dailyPerformance.map(d => d[m] || 0);
+          let maxValue = Math.max(...values, 0);
+          let maxVal = maxValue > 0 ? maxValue : 10;
+          maxVal = Math.ceil(maxVal * 1.15);
+          const N = dailyPerformance.length;
+          const points = dailyPerformance.map((item, idx) => {
+            const x = paddingLeft + (idx / Math.max(N - 1, 1)) * chartWidth;
+            const y = (220 - paddingBottom) - ((item[m] || 0) / maxVal) * chartHeight;
+            return { x, y };
+          });
+
+          let linePath = '';
+          let areaPath = '';
+          if (points.length > 0) {
+            linePath = `M ${points[0].x} ${points[0].y}`;
+            areaPath = `M ${points[0].x} ${220 - paddingBottom} L ${points[0].x} ${points[0].y}`;
+            for (let i = 0; i < points.length - 1; i++) {
+              const cpX1 = points[i].x + (points[i+1].x - points[i].x) / 3;
+              const cpY1 = points[i].y;
+              const cpX2 = points[i].x + 2 * (points[i+1].x - points[i].x) / 3;
+              const cpY2 = points[i+1].y;
+              linePath += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${points[i+1].x} ${points[i+1].y}`;
+              areaPath += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${points[i+1].x} ${points[i+1].y}`;
+            }
+            areaPath += ` L ${points[points.length - 1].x} ${220 - paddingBottom} Z`;
+          }
+          const gridLines = [0, Math.floor(maxVal * 0.33), Math.floor(maxVal * 0.66), maxVal];
+          result[m] = { points, maxVal, gridLines, linePath, areaPath };
+        });
+        return result;
+      }, [dailyPerformance, chartWidth, chartHeight]);
+
+      const activePoints = useMemo(() => {
+        const refMetric = selectedMetric === 'all' ? 'pv' : selectedMetric;
+        return chartData[refMetric]?.points || [];
+      }, [selectedMetric, chartData]);
+
+      const gridLinesToRender = useMemo(() => {
+        if (selectedMetric === 'all') {
+          return [
+            { yVal: 100, label: '100%', isPercent: true },
+            { yVal: 66, label: '66%', isPercent: true },
+            { yVal: 33, label: '33%', isPercent: true },
+            { yVal: 0, label: '0%', isPercent: true }
+          ];
+        }
+        if (chartData[selectedMetric]) {
+          const { gridLines, maxVal } = chartData[selectedMetric];
+          return gridLines.map(v => ({
+            yVal: v,
+            label: formatAxisValue(v, selectedMetric),
+            rawMax: maxVal,
+            isPercent: false
+          }));
+        }
+        return [];
+      }, [selectedMetric, chartData]);
+
+      const daysCount = useMemo(() => {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        return Math.max(diffDays, 1);
+      }, [startDate, endDate]);
+
+      const displayStats = useMemo(() => {
+        if (viewMode === 'cumulative') return stats;
+        const rawPV = parseInt(stats.totalPV.replace(/,/g, '')) || 0;
+        const rawUV = parseInt(stats.uniqueUV.replace(/,/g, '')) || 0;
+        const rawClicks = parseInt(stats.totalClicks.replace(/,/g, '')) || 0;
+        const rawRev = parseInt(stats.revenue.replace(/[^0-9]/g, '')) || 0;
+        return {
+          ...stats,
+          totalPV: Math.round(rawPV / daysCount).toLocaleString(),
+          uniqueUV: Math.round(rawUV / daysCount).toLocaleString(),
+          totalClicks: Math.round(rawClicks / daysCount).toLocaleString(),
+          revenue: `₩${Math.round(rawRev / daysCount).toLocaleString()}`
+        };
+      }, [stats, viewMode, daysCount]);
+
+      const displayFunnel = useMemo(() => {
+        if (viewMode === 'cumulative') return funnel;
+        return funnel.map(step => ({
+          ...step,
+          count: Math.round(step.count / daysCount)
+        }));
+      }, [funnel, viewMode, daysCount]);
+
+      const displayPages = useMemo(() => {
+        if (viewMode === 'cumulative') return pages;
+        return pages.map(p => {
+          const rawPV = p.pv || 0;
+          const rawUV = p.uv || 0;
+          const rawClicks = p.clicks || 0;
+          const rawRev = p.revenue || 0;
+          return {
+            ...p,
+            pv: Math.round(rawPV / daysCount),
+            uv: Math.round(rawUV / daysCount),
+            clicks: Math.round(rawClicks / daysCount),
+            revenue: Math.round(rawRev / daysCount)
+          };
+        });
+      }, [pages, viewMode, daysCount]);
+
+      function formatAxisValue(val, metric) {
+        if (metric === 'revenue') {
+          if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
+          if (val >= 1000) return `${(val / 1000).toFixed(0)}K`;
+          return val.toString();
+        }
+        if (val >= 1000) return `${(val / 1000).toFixed(1)}K`;
+        return val.toString();
+      }
+
+      function shouldShowLabel(idx, length) {
+        if (length <= 7) return true;
+        if (length <= 15) return idx % 2 === 0;
+        return idx % 3 === 0 || idx === length - 1;
+      }
+
+      function formatDateLabel(dateStr) {
+        if (!dateStr) return '';
+        const parts = dateStr.split('-');
+        if (parts.length < 3) return dateStr;
+        return `${parts[1]}/${parts[2]}`;
+      }
+
+      return (
+        <div className="dashboard-pane">
+          {/* Dashboard Header */}
+          <div className="dashboard-header-group">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <img src="./exhibition_analytics_icon.png" alt="LFmall Logo" style={{ width: '38px', height: '38px', objectFit: 'contain' }} />
+              <div>
+                <span className="caption-uppercase" style={{color: 'var(--colors-muted)', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                  <IconBarChart size={14} /> LFMALL REAL-TIME CAMPAIGN TELEMETRY
+                </span>
+                <h2 className="display-sm" style={{marginTop: '2px', fontWeight: 700, letterSpacing: '-0.5px'}}>기획전 실시간 성과 분석 대시보드</h2>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {/* Date Presets Selector */}
+              <div style={{ display: 'flex', backgroundColor: 'var(--colors-surface-strong)', padding: '3px', borderRadius: 'var(--rounded-pill)', border: '1px solid var(--colors-hairline)' }}>
+                {[
+                  { id: '3d', label: '3일' },
+                  { id: '7d', label: '7일' },
+                  { id: '15d', label: '15일' },
+                  { id: '30d', label: '30일' }
+                ].map(preset => {
+                  const isActive = datePreset === preset.id;
+                  return (
+                    <button 
+                      key={preset.id}
+                      onClick={() => handlePresetChange(preset.id)}
+                      style={{
+                        border: 'none',
+                        background: isActive ? 'var(--colors-canvas)' : 'none',
+                        color: isActive ? 'var(--colors-brand-teal)' : 'var(--colors-muted)',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '4px 12px',
+                        borderRadius: 'var(--rounded-pill)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Date Range Inputs */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: 'var(--colors-surface-soft)', padding: '4px 10px', borderRadius: 'var(--rounded-pill)', border: '1px solid var(--colors-hairline)', fontSize: '11px', fontWeight: 600 }}>
+                <input 
+                  type="date" 
+                  value={startDate} 
+                  onChange={(e) => { setStartDate(e.target.value); setDatePreset('custom'); }} 
+                  style={{ border: 'none', background: 'none', fontSize: '11px', color: 'var(--colors-ink)', fontWeight: 600, outline: 'none', cursor: 'pointer' }} 
+                />
+                <span style={{ color: 'var(--colors-muted-soft)' }}>~</span>
+                <input 
+                  type="date" 
+                  value={endDate} 
+                  onChange={(e) => { setEndDate(e.target.value); setDatePreset('custom'); }} 
+                  style={{ border: 'none', background: 'none', fontSize: '11px', color: 'var(--colors-ink)', fontWeight: 600, outline: 'none', cursor: 'pointer' }} 
+                />
+              </div>
+
+              {/* Refresh Action */}
+              <button 
+                className="btn btn-secondary btn-sm" 
+                onClick={refresh}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: 'var(--rounded-pill)',
+                  border: '1px solid var(--colors-hairline)',
+                  cursor: 'pointer',
+                  backgroundColor: 'var(--colors-canvas)',
+                  transition: 'all 0.2s'
+                }}
+                title="새로고침"
+              >
+                <IconRefresh size={13} />
+              </button>
+            </div>
+          </div>
+
+          {/* Interactive Metric Trend Chart */}
+          <div className="chart-card" style={{ marginBottom: 'var(--spacing-md)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: 'var(--spacing-md)' }}>
+              <div>
+                <h3 className="title-md">일별 통합 성과 추이 그래프</h3>
+                <p className="body-sm" style={{color: 'var(--colors-muted)', marginTop: '2px'}}>조회 기간 동안 발생한 일별 트래픽 지표 추세 분석입니다.</p>
+              </div>
+
+              {/* Metrics Interactive Toggles */}
+              <div style={{ display: 'flex', backgroundColor: 'var(--colors-surface-strong)', padding: '3px', borderRadius: 'var(--rounded-pill)', border: '1px solid var(--colors-hairline)' }}>
+                {[
+                  { id: 'all', label: '🔘 전체 지표', color: 'var(--colors-ink)' },
+                  { id: 'pv', label: '💖 페이지뷰 (PV)', color: 'var(--colors-brand-pink)' },
+                  { id: 'uv', label: '💚 순방문자 (UV)', color: 'var(--colors-brand-teal)' },
+                  { id: 'clicks', label: '💙 클릭활동량', color: 'var(--colors-brand-mint)' },
+                  { id: 'revenue', label: '💛 기여매출액', color: 'var(--colors-brand-ochre)' }
+                ].map(m => {
+                  const isActive = selectedMetric === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => setSelectedMetric(m.id)}
+                      style={{
+                        border: 'none',
+                        background: isActive ? 'var(--colors-canvas)' : 'none',
+                        color: isActive ? m.color : 'var(--colors-muted)',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '4px 10px',
+                        borderRadius: 'var(--rounded-pill)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: m.color, opacity: isActive ? 1 : 0.4 }}></span>
+                      {m.label.split(' ')[1] || m.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="svg-chart-container" style={{ width: '100%', height: '220px', position: 'relative' }}>
+              {dailyPerformance.length === 0 ? (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', height: '100%', color: 'var(--colors-muted)', fontSize: '13px', fontWeight: 600 }}>
+                  조회된 성과 데이터가 없습니다.
+                </div>
+              ) : (
+                <svg viewBox="0 0 1000 220" width="100%" height="100%">
+                  {/* Grid Lines Rendering */}
+                  {gridLinesToRender.map((line, idx) => {
+                    const y = (selectedMetric === 'all')
+                      ? (220 - paddingBottom) - (line.yVal / 100) * chartHeight
+                      : (220 - paddingBottom) - (line.yVal / (line.rawMax || 1)) * chartHeight;
+                    return (
+                      <g key={idx}>
+                        <line x1={paddingLeft} y1={y} x2={1000 - paddingRight} y2={y} stroke="var(--colors-hairline)" strokeWidth="1" strokeDasharray="3 3" />
+                        <text x={paddingLeft - 8} y={y + 4} fill="var(--colors-muted-soft)" fontSize="9" fontWeight="700" textAnchor="end" fontFamily="monospace">
+                          {line.label}
+                        </text>
+                      </g>
+                    );
+                  })}
+
+                  {/* SVG Paths Rendering */}
+                  {selectedMetric === 'all' ? (
+                    ['pv', 'uv', 'clicks', 'revenue'].map(m => {
+                      const mColor = m === 'pv' ? 'var(--colors-brand-pink)' : m === 'uv' ? 'var(--colors-brand-teal)' : m === 'clicks' ? 'var(--colors-brand-mint)' : 'var(--colors-brand-ochre)';
+                      return (
+                        <path 
+                          key={m}
+                          d={chartData[m]?.linePath} 
+                          fill="none" 
+                          stroke={mColor} 
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{ transition: 'd 0.3s ease-out' }}
+                        />
+                      );
+                    })
+                  ) : (
+                    chartData[selectedMetric] && (
+                      <g>
+                        <path 
+                          d={chartData[selectedMetric].areaPath} 
+                          fill={`url(#areaGrad-${selectedMetric})`}
+                          style={{ transition: 'd 0.3s ease-out' }}
+                        />
+                        <path 
+                          d={chartData[selectedMetric].linePath} 
+                          fill="none" 
+                          stroke={selectedMetric === 'pv' ? 'var(--colors-brand-pink)' : selectedMetric === 'uv' ? 'var(--colors-brand-teal)' : selectedMetric === 'clicks' ? 'var(--colors-brand-mint)' : 'var(--colors-brand-ochre)'} 
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{ transition: 'd 0.3s ease-out' }}
+                        />
+                        <defs>
+                          <linearGradient id={`areaGrad-${selectedMetric}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={selectedMetric === 'pv' ? 'var(--colors-brand-pink)' : selectedMetric === 'uv' ? 'var(--colors-brand-teal)' : selectedMetric === 'clicks' ? 'var(--colors-brand-mint)' : 'var(--colors-brand-ochre)'} stopOpacity="0.15" />
+                            <stop offset="100%" stopColor={selectedMetric === 'pv' ? 'var(--colors-brand-pink)' : selectedMetric === 'uv' ? 'var(--colors-brand-teal)' : selectedMetric === 'clicks' ? 'var(--colors-brand-mint)' : 'var(--colors-brand-ochre)'} stopOpacity="0.00" />
+                          </linearGradient>
+                        </defs>
+                      </g>
+                    )
+                  )}
+
+                  <line x1={paddingLeft} y1={220 - paddingBottom} x2={1000 - paddingRight} y2={220 - paddingBottom} stroke="var(--colors-muted-soft)" strokeWidth="1" />
+
+                  {activePoints.map((p, i) => {
+                    if (!shouldShowLabel(i, activePoints.length)) return null;
+                    return (
+                      <text key={i} x={p.x} y={220 - paddingBottom + 16} fill="var(--colors-muted)" fontSize="10" textAnchor="middle" fontFamily="monospace">
+                        {formatDateLabel(dailyPerformance[i].date)}
+                      </text>
+                    );
+                  })}
+
+                  {activePoints.map((p, i) => {
+                    const colWidth = chartWidth / Math.max(activePoints.length, 1);
+                    return (
+                      <rect
+                        key={i}
+                        x={p.x - colWidth / 2}
+                        y={paddingTop}
+                        width={colWidth}
+                        height={chartHeight}
+                        fill="transparent"
+                        style={{ cursor: 'pointer' }}
+                        onMouseEnter={() => setHoveredIndex(i)}
+                        onMouseLeave={() => setHoveredIndex(null)}
+                      />
+                    );
+                  })}
+
+                  {hoveredIndex !== null && activePoints[hoveredIndex] && (
+                    <line x1={activePoints[hoveredIndex].x} y1={paddingTop} x2={activePoints[hoveredIndex].x} y2={220 - paddingBottom} stroke="var(--colors-muted-soft)" strokeWidth="1.5" strokeDasharray="3 3" />
+                  )}
+
+                  {selectedMetric === 'all' ? (
+                    ['pv', 'uv', 'clicks', 'revenue'].map(m => {
+                      const mColor = m === 'pv' ? 'var(--colors-brand-pink)' : m === 'uv' ? 'var(--colors-brand-teal)' : m === 'clicks' ? 'var(--colors-brand-mint)' : 'var(--colors-brand-ochre)';
+                      const pts = chartData[m]?.points || [];
+                      const p = pts[hoveredIndex];
+                      if (!p) return null;
+                      return (
+                        <circle key={m} cx={p.x} cy={p.y} r={5} fill="var(--colors-canvas)" stroke={mColor} strokeWidth={3} pointerEvents="none" />
+                      );
+                    })
+                  ) : (
+                    activePoints.map((p, i) => {
+                      const isHovered = hoveredIndex === i;
+                      const metricColor = selectedMetric === 'pv' ? 'var(--colors-brand-pink)' : selectedMetric === 'uv' ? 'var(--colors-brand-teal)' : selectedMetric === 'clicks' ? 'var(--colors-brand-mint)' : 'var(--colors-brand-ochre)';
+                      return (
+                        <circle key={i} cx={p.x} cy={p.y} r={isHovered ? 6 : 3.5} fill="var(--colors-canvas)" stroke={metricColor} strokeWidth={isHovered ? 3 : 2} style={{ transition: 'r 0.15s ease-out, stroke-width 0.15s ease-out' }} pointerEvents="none" />
+                      );
+                    })
+                  )}
+
+                  {hoveredIndex !== null && dailyPerformance[hoveredIndex] && activePoints[hoveredIndex] && (
+                    <g style={{ pointerEvents: 'none' }}>
+                      {selectedMetric === 'all' ? (
+                        <g>
+                          <rect x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 : activePoints[hoveredIndex].x + 15} y={20} width="160" height="130" rx="8" fill="var(--colors-surface-dark)" opacity="0.96" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+                          <text x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 80 : activePoints[hoveredIndex].x + 15 + 80} y={38} fill="var(--colors-on-dark)" fontSize="11" fontWeight="700" textAnchor="middle">{dailyPerformance[hoveredIndex].date}</text>
+                          <circle cx={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 20 : activePoints[hoveredIndex].x + 15 + 20} cy={58} r="4" fill="var(--colors-brand-pink)" />
+                          <text x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 32 : activePoints[hoveredIndex].x + 15 + 32} y={62} fill="var(--colors-muted-soft)" fontSize="10" fontWeight="500">페이지뷰 (PV):</text>
+                          <text x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 145 : activePoints[hoveredIndex].x + 15 + 145} y={62} fill="#ffffff" fontSize="10" fontWeight="700" textAnchor="end">{(dailyPerformance[hoveredIndex].pv || 0).toLocaleString()}</text>
+                          <circle cx={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 20 : activePoints[hoveredIndex].x + 15 + 20} cy={78} r="4" fill="var(--colors-brand-teal)" />
+                          <text x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 32 : activePoints[hoveredIndex].x + 15 + 32} y={82} fill="var(--colors-muted-soft)" fontSize="10" fontWeight="500">순방문자 (UV):</text>
+                          <text x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 145 : activePoints[hoveredIndex].x + 15 + 145} y={82} fill="#ffffff" fontSize="10" fontWeight="700" textAnchor="end">{(dailyPerformance[hoveredIndex].uv || 0).toLocaleString()}</text>
+                          <circle cx={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 20 : activePoints[hoveredIndex].x + 15 + 20} cy={98} r="4" fill="var(--colors-brand-mint)" />
+                          <text x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 32 : activePoints[hoveredIndex].x + 15 + 32} y={102} fill="var(--colors-muted-soft)" fontSize="10" fontWeight="500">클릭활동량:</text>
+                          <text x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 145 : activePoints[hoveredIndex].x + 15 + 145} y={102} fill="#ffffff" fontSize="10" fontWeight="700" textAnchor="end">{(dailyPerformance[hoveredIndex].clicks || 0).toLocaleString()}</text>
+                          <circle cx={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 20 : activePoints[hoveredIndex].x + 15 + 20} cy={118} r="4" fill="var(--colors-brand-ochre)" />
+                          <text x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 32 : activePoints[hoveredIndex].x + 15 + 32} y={122} fill="var(--colors-muted-soft)" fontSize="10" fontWeight="500">기여매출액:</text>
+                          <text x={activePoints[hoveredIndex].x + 15 + 160 > 1000 ? activePoints[hoveredIndex].x - 175 + 145 : activePoints[hoveredIndex].x + 15 + 145} y={122} fill="var(--colors-brand-ochre)" fontSize="10" fontWeight="700" textAnchor="end">₩{(dailyPerformance[hoveredIndex].revenue || 0).toLocaleString()}</text>
+                        </g>
+                      ) : (
+                        <g>
+                          <rect x={activePoints[hoveredIndex].x - 65} y={Math.max(activePoints[hoveredIndex].y - 52, 5)} width="130" height="40" rx="6" fill="var(--colors-surface-dark)" opacity="0.95" />
+                          <text x={activePoints[hoveredIndex].x} y={Math.max(activePoints[hoveredIndex].y - 38, 19)} fill="var(--colors-on-dark)" fontSize="9" fontWeight="600" textAnchor="middle">{dailyPerformance[hoveredIndex].date}</text>
+                          <text x={activePoints[hoveredIndex].x} y={Math.max(activePoints[hoveredIndex].y - 22, 35)} fill={selectedMetric === 'pv' ? 'var(--colors-brand-pink)' : selectedMetric === 'uv' ? 'var(--colors-brand-teal)' : selectedMetric === 'clicks' ? 'var(--colors-brand-mint)' : 'var(--colors-brand-ochre)'} fontSize="11" fontWeight="700" textAnchor="middle">
+                            {selectedMetric === 'revenue' 
+                              ? `₩${dailyPerformance[hoveredIndex].revenue.toLocaleString()}` 
+                              : `${(dailyPerformance[hoveredIndex][selectedMetric] || 0).toLocaleString()} ${selectedMetric === 'pv' ? 'PV' : selectedMetric === 'clicks' ? '회' : '명'}`
+                            }
+                          </text>
+                        </g>
+                      )}
+                    </g>
+                  )}
+                </svg>
+              )}
+            </div>
+          </div>
+
+          {/* Cumulative vs Daily Average Toggle Selector */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--spacing-md)' }}>
+            <div className="view-mode-toggle" style={{ display: 'flex', backgroundColor: 'var(--colors-surface-strong)', padding: '3px', borderRadius: 'var(--rounded-pill)', border: '1px solid var(--colors-hairline)', position: 'relative', zIndex: 10 }}>
+              {[
+                { id: 'cumulative', label: '📊 누적 데이터 (Cumulative)' },
+                { id: 'average', label: '⏱️ 일 평균 데이터 (Daily Avg)' }
+              ].map(mode => {
+                const isActive = viewMode === mode.id;
+                return (
+                  <button
+                    key={mode.id}
+                    className={`btn btn-sm ${isActive ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setViewMode(mode.id)}
+                    style={{
+                      height: '28px',
+                      fontSize: '12px',
+                      padding: '4px 14px',
+                      backgroundColor: isActive ? 'var(--colors-brand-teal)' : 'var(--colors-canvas)',
+                      color: isActive ? '#ffffff' : 'var(--colors-ink)',
+                      borderRadius: 'var(--rounded-pill)',
+                      border: isActive ? 'none' : '1px solid var(--colors-hairline)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      fontWeight: 600
+                    }}
+                  >
+                    {mode.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Top Scorecard Metrics */}
+          <div className="dashboard-stats-grid">
+            <div className="stat-card colored-pink">
+              <div className="stat-header">
+                <span className="caption-uppercase">
+                  {viewMode === 'average' ? '기획전 일 평균 페이지 뷰 (PV)' : '기획전 누적 페이지 뷰 (PV)'}
+                </span>
+                <IconEye color="var(--colors-brand-pink)" />
+              </div>
+              <span className="stat-value">{displayStats.totalPV}</span>
+              <span className="caption" style={{color: 'var(--colors-muted)'}}>
+                {viewMode === 'average' ? 'Daily Avg Hits' : 'Total Web Hits'}
+              </span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px', marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid var(--colors-hairline)', fontSize: '11px', fontWeight: '600' }}>
+                <span style={{ color: 'var(--colors-success)' }}>전월비 +14.2% ▲</span>
+                <span style={{ color: 'var(--colors-success)' }}>전년비 +32.5% ▲</span>
+              </div>
+            </div>
+
+            <div className="stat-card colored-teal">
+              <div className="stat-header">
+                <span className="caption-uppercase">
+                  {viewMode === 'average' ? '기획전 일 평균 방문자 (UV)' : '기획전 순 방문자 수 (UV)'}
+                </span>
+                <IconUsers color="var(--colors-brand-teal)" />
+              </div>
+              <span className="stat-value">{displayStats.uniqueUV}</span>
+              <span className="caption" style={{color: 'var(--colors-muted)'}}>
+                {viewMode === 'average' ? 'Daily Avg Users' : 'Unique Session UUIDs'}
+              </span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px', marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid var(--colors-hairline)', fontSize: '11px', fontWeight: '600' }}>
+                <span style={{ color: 'var(--colors-success)' }}>전월비 +8.7% ▲</span>
+                <span style={{ color: 'var(--colors-success)' }}>전년비 +21.4% ▲</span>
+              </div>
+            </div>
+
+            <div className="stat-card colored-mint">
+              <div className="stat-header">
+                <span className="caption-uppercase">
+                  {viewMode === 'average' ? '기획전 일 평균 클릭 활동량' : '기획전 내 클릭 활동량 (Clicks)'}
+                </span>
+                <IconCursor color="var(--colors-brand-mint)" />
+              </div>
+              <span className="stat-value">{displayStats.totalClicks}</span>
+              <span className="caption" style={{color: 'var(--colors-muted)'}}>
+                {viewMode === 'average' ? 'Daily Avg Clicks' : 'Attributed Interactions'}
+              </span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px', marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid var(--colors-hairline)', fontSize: '11px', fontWeight: '600' }}>
+                <span style={{ color: 'var(--colors-success)' }}>전월비 +18.9% ▲</span>
+                <span style={{ color: 'var(--colors-success)' }}>전년비 +41.2% ▲</span>
+              </div>
+            </div>
+
+            <div className="stat-card colored-lavender">
+              <div className="stat-header">
+                <span className="caption-uppercase">기획전 평균 체류시간</span>
+                <IconClock color="var(--colors-brand-lavender)" />
+              </div>
+              <span className="stat-value">{displayStats.avgDuration}</span>
+              <span className="caption" style={{color: 'var(--colors-muted)'}}>Session Heartbeat Avg</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px', marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid var(--colors-hairline)', fontSize: '11px', fontWeight: '600' }}>
+                <span style={{ color: 'var(--colors-success)' }}>전월비 +2.4% ▲</span>
+                <span style={{ color: 'var(--colors-success)' }}>전년비 +5.1% ▲</span>
+              </div>
+            </div>
+
+            <div className="stat-card colored-peach">
+              <div className="stat-header">
+                <span className="caption-uppercase">기획전 이탈률 (Bounce Rate)</span>
+                <IconTrendingUp color="var(--colors-brand-peach)" />
+              </div>
+              <span className="stat-value">{displayStats.bounceRate}</span>
+              <span className="caption" style={{color: 'var(--colors-muted)'}}>Single Page Sessions</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px', marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid var(--colors-hairline)', fontSize: '11px', fontWeight: '600' }}>
+                <span style={{ color: 'var(--colors-success)' }}>전월비 -3.1% ▼</span>
+                <span style={{ color: 'var(--colors-success)' }}>전년비 -5.4% ▼</span>
+              </div>
+            </div>
+
+            <div className="stat-card colored-ochre">
+              <div className="stat-header">
+                <span className="caption-uppercase">
+                  {viewMode === 'average' ? '기획전 일 평균 기여 매출액' : '기획전 기여 매출액 (Last-Touch)'}
+                </span>
+                <IconSparkles color="var(--colors-brand-ochre)" />
+              </div>
+              <span className="stat-value" style={{ fontSize: '26px', lineHeight: '38px' }}>{displayStats.revenue}</span>
+              <span className="caption" style={{color: 'var(--colors-muted)'}}>
+                {viewMode === 'average' ? 'Daily Avg Sales Revenue' : 'Conversion Sales Revenue'}
+              </span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px', marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid var(--colors-hairline)', fontSize: '11px', fontWeight: '600' }}>
+                <span style={{ color: 'var(--colors-success)' }}>전월비 +22.8% ▲</span>
+                <span style={{ color: 'var(--colors-success)' }}>전년비 +58.1% ▲</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Funnel & Campaign Performance */}
+          <FunnelChart displayFunnel={displayFunnel} viewMode={viewMode} />
+          <CampaignGrid 
+            displayPages={displayPages} 
+            viewMode={viewMode} 
+            visibleCount={visibleCount} 
+            setVisibleCount={setVisibleCount}
+            isLoadingMore={isLoadingMore}
+            setIsLoadingMore={setIsLoadingMore}
+          />
+        </div>
+      );
+    };
+
+    // Main App Mounting bootsrapper
     function App() {
       return (
         <div className="app-container">
           <main className="workspace-frame">
             <div className="pane dashboard-pane-container" style={{ width: '100%' }}>
-              <window.AnalyticsDashboard />
+              <AnalyticsDashboard />
             </div>
           </main>
         </div>
       );
     }
 
-    // Mounting React to DOM
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
-
 </body>
 </html>
