@@ -38,150 +38,149 @@ const DB_DIR = isServerless
 
 const https = require('https');
 
-let useInMemoryFallback = false;
-const inMemoryDb = {}; // Local memory cache
+// --- UPSTASH REDIS PERSISTENCE LAYER (REST API for Serverless) ---
+const UPSTASH_REDIS_REST_URL = process.env.UPSTASH_REDIS_REST_URL || 'https://moving-ladybird-138242.upstash.io';
+const UPSTASH_REDIS_REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || 'gQAAAAAAAhwCAAIgcDFiZTMzOTAwYjEzOWY0NmUyYWUwZmJkMmZmYmU0MjNkZQ';
 
-// --- CLOUD DATABASE PERSISTENCE LAYER (kvdb.io via Native HTTPS) ---
-const KV_BASE_URL = 'https://kvdb.io/lf_mall_ex_stats_v99';
-
-function httpsGet(url) {
-  return new Promise((resolve, reject) => {
-    https.get(url, (res) => {
-      let data = '';
-      res.on('data', (chunk) => data += chunk);
-      res.on('end', () => {
-        if (res.statusCode === 404) return resolve({});
-        if (res.statusCode < 200 || res.statusCode >= 300) {
-          return reject(new Error(`HTTP Error ${res.statusCode}`));
-        }
-        try {
-          resolve(JSON.parse(data));
-        } catch (e) {
-          resolve({}); // Fallback to empty object on parse errors
-        }
-      });
-    }).on('error', reject);
-  });
-}
-
-function httpsPut(url, body) {
-  return new Promise((resolve, reject) => {
-    const urlObj = new URL(url);
+function redisGet(key) {
+  return new Promise((resolve) => {
+    const url = new URL(`/get/${encodeURIComponent(key)}`, UPSTASH_REDIS_REST_URL);
     const options = {
-      method: 'PUT',
-      hostname: urlObj.hostname,
-      path: urlObj.pathname + urlObj.search,
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body)
-      }
+      method: 'GET',
+      hostname: url.hostname,
+      path: url.pathname,
+      port: 443,
+      headers: { 'Authorization': `Bearer ${UPSTASH_REDIS_REST_TOKEN}` }
     };
-
     const req = https.request(options, (res) => {
       let data = '';
       res.on('data', (chunk) => data += chunk);
       res.on('end', () => {
-        if (res.statusCode < 200 || res.statusCode >= 300) {
-          return reject(new Error(`HTTP Error ${res.statusCode}`));
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.result !== null && parsed.result !== undefined) {
+            resolve(JSON.parse(parsed.result));
+          } else {
+            resolve(null);
+          }
+        } catch (e) {
+          resolve(null);
         }
-        resolve(data);
       });
-    }).on('error', reject);
+    });
+    req.on('error', (e) => {
+      console.warn('[REDIS-GET-ERROR]', key, e.message);
+      resolve(null);
+    });
+    req.end();
+  });
+}
 
+function redisSet(key, value) {
+  return new Promise((resolve) => {
+    const body = JSON.stringify(["SET", key, JSON.stringify(value)]);
+    const url = new URL('/', UPSTASH_REDIS_REST_URL);
+    const options = {
+      method: 'POST',
+      hostname: url.hostname,
+      path: '/',
+      port: 443,
+      headers: {
+        'Authorization': `Bearer ${UPSTASH_REDIS_REST_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body)
+      }
+    };
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => data += chunk);
+      res.on('end', () => resolve(data));
+    });
+    req.on('error', (e) => {
+      console.warn('[REDIS-SET-ERROR]', key, e.message);
+      resolve(null);
+    });
     req.write(body);
     req.end();
   });
 }
 
-// --- MEMORY-FIRST CACHE & BACKGROUND SYNC ENGINE ---
+// --- IN-MEMORY CACHE (Write-Through to Upstash Redis) ---
 let memoryMetadata = {};
 let memoryDailyStats = {};
 let memoryRecentLogs = [];
 let memorySessionAttributions = {};
 let isMemoryInitialized = false;
 
-// Warm-up and deterministic seed memory instantly at startup!
-function initializeMemoryStore() {
+// Cold-start: restore all persisted data from Redis
+async function ensureDbInitialized() {
   if (isMemoryInitialized) return;
-  console.log('[LOCAL-MEMORY] Initializing memory store with pure empty state for 100% Real Live data only...');
   
-  memoryMetadata = {};
-  memoryDailyStats = {};
-  memoryRecentLogs = [];
-  memorySessionAttributions = {};
+  console.log('[INIT] Loading persisted data from Upstash Redis...');
+  
+  try {
+    const [meta, logs, attributions] = await Promise.all([
+      redisGet('lfmall:metadata'),
+      redisGet('lfmall:recent_logs'),
+      redisGet('lfmall:session_attributions')
+    ]);
+    
+    memoryMetadata = meta || {};
+    memoryRecentLogs = logs || [];
+    memorySessionAttributions = attributions || {};
+    
+    console.log('[INIT] Restored from Redis:', Object.keys(memoryMetadata).length, 'exhibitions in metadata');
+  } catch (e) {
+    console.error('[INIT-ERROR] Failed to load from Redis:', e.message);
+  }
   
   isMemoryInitialized = true;
-  console.log('[LOCAL-MEMORY] Memory store initialized empty.');
 }
 
-// Trigger memory initialization instantly at startup
-initializeMemoryStore();
-
-// --- DUAL HYBRID STORAGE ENGINE HELPERS (BACKGROUND ONLY) ---
-function writeLocalFile(filename, content) {
-  try {
-    const filePath = path.join(DB_DIR, filename);
-    fs.writeFileSync(filePath, JSON.stringify(content, null, 2));
-  } catch (err) {}
-}
-
-function readLocalFile(filename, fallback) {
-  try {
-    const filePath = path.join(DB_DIR, filename);
-    if (fs.existsSync(filePath)) {
-      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    }
-  } catch (err) {}
-  return fallback;
-}
-
-// Background sync triggers - completely non-blocking!
-async function backgroundSync(key, data, filename) {
-  if (!isServerless) {
-    writeLocalFile(filename, data);
-    return;
-  }
-  try {
-    await httpsPut(`${KV_BASE_URL}/${key}`, JSON.stringify(data));
-  } catch (e) {
-    console.warn(`[BACKGROUND-SYNC-WARNING] Failed to sync ${key} in background:`, e.message);
-  }
-}
+// --- PERSISTENCE FUNCTIONS (Memory + Redis Write-Through) ---
 
 async function fetchMetadata() {
+  await ensureDbInitialized();
   return memoryMetadata;
 }
 
 async function saveMetadata(meta) {
   memoryMetadata = meta;
-  backgroundSync('metadata', meta, 'metadata.json');
+  await redisSet('lfmall:metadata', meta);
 }
 
 async function fetchDailyStats(dateStr) {
+  await ensureDbInitialized();
+  if (memoryDailyStats[dateStr]) return memoryDailyStats[dateStr];
+  // Cache miss → load from Redis
+  const data = await redisGet(`lfmall:daily_stats:${dateStr}`);
+  if (data) memoryDailyStats[dateStr] = data;
   return memoryDailyStats[dateStr] || {};
 }
 
 async function saveDailyStats(dateStr, stats) {
   memoryDailyStats[dateStr] = stats;
-  backgroundSync(`daily_stats_${dateStr}`, stats, `daily_stats_${dateStr}.json`);
+  await redisSet(`lfmall:daily_stats:${dateStr}`, stats);
 }
 
 async function fetchRecentLogs() {
+  await ensureDbInitialized();
   return memoryRecentLogs;
 }
 
 async function saveRecentLogs(logs) {
   memoryRecentLogs = logs.slice(-25);
-  backgroundSync('recent_logs', memoryRecentLogs, 'recent_logs.json');
+  await redisSet('lfmall:recent_logs', memoryRecentLogs);
 }
 
 async function fetchSessionAttributions() {
+  await ensureDbInitialized();
   return memorySessionAttributions;
 }
 
 async function saveSessionAttributions(attributions) {
   memorySessionAttributions = attributions;
-  backgroundSync('session_attributions', attributions, 'session_attributions.json');
+  await redisSet('lfmall:session_attributions', attributions);
 }
 
 function getPastDateStrings(count) {
@@ -197,21 +196,20 @@ function getPastDateStrings(count) {
   return dates;
 }
 
-// Deterministic Seeding Logic (Triggered primarily on reset)
+// Reset function (clears both memory and Redis)
 async function seedServerDatabase() {
-  isMemoryInitialized = false;
-  initializeMemoryStore();
+  memoryMetadata = {};
+  memoryDailyStats = {};
+  memoryRecentLogs = [];
+  memorySessionAttributions = {};
+  isMemoryInitialized = true;
   
-  // Background sync everything
-  await saveMetadata(memoryMetadata);
-  const dates = Object.keys(memoryDailyStats);
-  for (const dateStr of dates) {
-    await saveDailyStats(dateStr, memoryDailyStats[dateStr]);
-  }
-}
-
-async function ensureDbInitialized() {
-  initializeMemoryStore();
+  await Promise.all([
+    redisSet('lfmall:metadata', {}),
+    redisSet('lfmall:recent_logs', []),
+    redisSet('lfmall:session_attributions', {})
+  ]);
+  console.log('[RESET] All data cleared from memory and Redis.');
 }
 
 // --- HELPER FUNCTION: EXTRACT EXHIBITION ID FROM URL ---
