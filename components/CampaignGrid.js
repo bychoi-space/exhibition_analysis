@@ -1,9 +1,73 @@
 // ==========================================================================
-// CampaignGrid.js: Premium Brand Grid Card with Lazy Loading
+// CampaignGrid.js: Premium Brand Grid Card with Lazy Loading & Dynamic Sorting
 // ==========================================================================
 
 const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, isLoadingMore, setIsLoadingMore }) => {
-  const [layoutMode, setLayoutMode] = React.useState('card'); // 'card', 'list'
+  const [layoutMode, setLayoutMode] = React.useState('list'); // Default to 'list'!
+  const [sortField, setSortField] = React.useState('revenue'); // Default sort field: revenue
+  const [sortDirection, setSortDirection] = React.useState('desc'); // Default sort direction: descending
+
+  // Dynamic Multi-type Sorting logic
+  const sortedPages = React.useMemo(() => {
+    if (!displayPages || displayPages.length === 0) return [];
+    
+    const pagesCopy = [...displayPages];
+    pagesCopy.sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+
+      // Special parsing for strings/percentages/times
+      if (sortField === 'title') {
+        aVal = a.title.replace(/\([^)]+\)/, '').trim();
+        bVal = b.title.replace(/\([^)]+\)/, '').trim();
+      }
+      if (sortField === 'brand') {
+        const matchA = a.title.match(/\(([^)]+)\)/);
+        const matchB = b.title.match(/\(([^)]+)\)/);
+        aVal = matchA ? matchA[1] : 'LF MALL';
+        bVal = matchB ? matchB[1] : 'LF MALL';
+      }
+      if (sortField === 'avgStay') {
+        aVal = parseInt(a.avgStay) || 0;
+        bVal = parseInt(b.avgStay) || 0;
+      }
+      if (sortField === 'bounceRate') {
+        aVal = parseFloat(a.bounceRate) || 0;
+        bVal = parseFloat(b.bounceRate) || 0;
+      }
+      if (sortField === 'cvr') {
+        aVal = parseFloat(a.cvr) || 0;
+        bVal = parseFloat(b.cvr) || 0;
+      }
+
+      if (typeof aVal === 'string') {
+        return sortDirection === 'asc' 
+          ? aVal.localeCompare(bVal, 'ko') 
+          : bVal.localeCompare(aVal, 'ko');
+      } else {
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+    });
+    return pagesCopy;
+  }, [displayPages, sortField, sortDirection]);
+
+  // Click handler for column sorting
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc'); // Default to descending on new field selection
+    }
+  };
+
+  // Render sorting visual indicator arrow
+  const renderSortArrow = (field) => {
+    if (sortField !== field) return <span style={{ color: 'var(--colors-muted-soft)', marginLeft: '4px', fontSize: '10px', transition: 'all 0.2s' }}>⇅</span>;
+    return sortDirection === 'asc' 
+      ? <span style={{ color: 'var(--colors-brand-teal)', marginLeft: '4px', fontSize: '10px', fontWeight: 'bold' }}>▲</span> 
+      : <span style={{ color: 'var(--colors-brand-teal)', marginLeft: '4px', fontSize: '10px', fontWeight: 'bold' }}>▼</span>;
+  };
 
   return (
     <div className="chart-card">
@@ -66,25 +130,43 @@ const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, i
       </div>
 
       {layoutMode === 'list' ? (
-        /* PREMIUM LEDGER LIST VIEW */
+        /* PREMIUM LEDGER LIST VIEW WITH COLUMNS SORTING */
         <div className="table-container" style={{ marginTop: 'var(--spacing-md)' }}>
           <table className="analytics-table">
             <thead>
-              <tr>
+              <tr style={{ userSelect: 'none' }}>
                 <th style={{ width: '60px', textAlign: 'center' }}>순위</th>
-                <th style={{ width: '110px' }}>브랜드</th>
-                <th>기획전 캠페인명</th>
-                <th style={{ textAlign: 'right' }}>{viewMode === 'average' ? '일 평균 PV' : '누적 PV'}</th>
-                <th style={{ textAlign: 'right' }}>{viewMode === 'average' ? '일 평균 UV' : '순 방문자'}</th>
-                <th style={{ textAlign: 'right' }}>{viewMode === 'average' ? '일 평균 클릭' : '클릭 활동'}</th>
-                <th style={{ textAlign: 'center' }}>체류시간</th>
-                <th style={{ textAlign: 'center' }}>이탈률</th>
-                <th style={{ textAlign: 'center' }}>CVR</th>
-                <th style={{ textAlign: 'right' }}>기여 매출액</th>
+                <th onClick={() => handleSort('brand')} style={{ width: '110px', cursor: 'pointer' }}>
+                  브랜드 {renderSortArrow('brand')}
+                </th>
+                <th onClick={() => handleSort('title')} style={{ cursor: 'pointer' }}>
+                  기획전 캠페인명 {renderSortArrow('title')}
+                </th>
+                <th onClick={() => handleSort('pv')} style={{ textAlign: 'right', cursor: 'pointer' }}>
+                  {viewMode === 'average' ? '일 평균 PV' : '누적 PV'} {renderSortArrow('pv')}
+                </th>
+                <th onClick={() => handleSort('uv')} style={{ textAlign: 'right', cursor: 'pointer' }}>
+                  {viewMode === 'average' ? '일 평균 UV' : '순 방문자'} {renderSortArrow('uv')}
+                </th>
+                <th onClick={() => handleSort('clicks')} style={{ textAlign: 'right', cursor: 'pointer' }}>
+                  {viewMode === 'average' ? '일 평균 클릭' : '클릭 활동'} {renderSortArrow('clicks')}
+                </th>
+                <th onClick={() => handleSort('avgStay')} style={{ textAlign: 'center', cursor: 'pointer' }}>
+                  체류시간 {renderSortArrow('avgStay')}
+                </th>
+                <th onClick={() => handleSort('bounceRate')} style={{ textAlign: 'center', cursor: 'pointer' }}>
+                  이탈률 {renderSortArrow('bounceRate')}
+                </th>
+                <th onClick={() => handleSort('cvr')} style={{ textAlign: 'center', cursor: 'pointer' }}>
+                  CVR {renderSortArrow('cvr')}
+                </th>
+                <th onClick={() => handleSort('revenue')} style={{ textAlign: 'right', cursor: 'pointer' }}>
+                  기여 매출액 {renderSortArrow('revenue')}
+                </th>
               </tr>
             </thead>
             <tbody>
-              {displayPages.slice(0, visibleCount).map((p, idx) => {
+              {sortedPages.slice(0, visibleCount).map((p, idx) => {
                 const brandMatch = p.title.match(/\(([^)]+)\)/);
                 const brandName = brandMatch ? brandMatch[1] : 'LF MALL';
                 const cleanTitle = p.title.replace(/\([^)]+\)/, '').trim();
@@ -147,9 +229,9 @@ const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, i
           </table>
         </div>
       ) : (
-        /* ORIGINAL PREMIUM CARDS GRID VIEW */
+        /* ORIGINAL PREMIUM CARDS GRID VIEW WITH ACTIVE SORTING */
         <div className="campaign-grid">
-          {displayPages.slice(0, visibleCount).map((p, idx) => {
+          {sortedPages.slice(0, visibleCount).map((p, idx) => {
             const brandMatch = p.title.match(/\(([^)]+)\)/);
             const brandName = brandMatch ? brandMatch[1] : 'LF MALL';
             const cleanTitle = p.title.replace(/\([^)]+\)/, '').trim();
