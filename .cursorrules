@@ -104,41 +104,39 @@ You must define these custom CSS variables in `style.css` and use them exclusive
 - **Bottom Metric Pinning**: Always pin comparative indicators (e.g. YoY / MoM changes) to the absolute bottom of flex-based grid cards using `margin-top: auto`. This guarantees flawless visual alignment regardless of title lengths or font-size adjustments.
 - **Always QA for Text Wrapping**: Before committing, verify if text elements wrap dynamically under different view modes (e.g., "Daily Avg" vs "Cumulative") and ensure it does not break row alignments.
 
-## 💾 Database Architecture & Serverless Persistence Guide
+## 💾 Database & Telemetry Data Pipeline Architecture
 
-### 1. Database Location & Storage Engine
+### 1. 📡 Telemetry Collection Pipeline
+The data flow operates as an optimized, lightweight real-time telemetry model without requiring heavy server-side background web crawling:
+1. **GTM Tag & Telemetry SDK (`tracker.js`)**: 
+   - Runs directly in the customer's browser DOM on `lfmall.co.kr`.
+   - Automatically captures real-time events (`PAGE_VIEW`, `CLICK`, `ADD_TO_CART`, `PURCHASE`).
+   - Captures the exact URL path and extracts `exhibitionId` (e.g., `/app/event/106251` or `/planning.do?datacls=992831`).
+   - Extracts the page title directly from the DOM (`document.title`) and passes it as `exhibitionTitle` in the payload, bypassing the need for a separate server-side web crawler.
+2. **Telemetry Ingestion (`server.js` -> `/api/collect`)**:
+   - GTM posts telemetry events to `/api/collect`.
+   - **Title Normalization**: To prevent SPA loading lag from submitting generic titles (like `LFmall.com` or `나를 나답게`), the server enforces strict normalization rules:
+     - **`106251`** -> Fixed to **`(더캐리) 더캐리 패밀리 임직원 시크릿 특가전`**, brand `더캐리`.
+     - Generic or fallback titles containing `LFmall.com` or `나를 나답게` are safely cleaned to `기획전 캠페인_${exhibitionId}`.
+   - **Session Last-Touch Attribution**: Attributes subsequent downstream events (clicks, add-to-carts, revenue) to the last visited exhibition ID using session tracking.
+
+### 2. 🗄️ Database Location & Sharded Storage Engine
 - **Cloud Database Engine**: High-performance, highly available cloud-hosted Key-Value storage API powered by **kvdb.io**.
-- **Secure Endpoint URL**: `https://kvdb.io/lf_mall_ex_stats_v99/lfmall_analytics_events`
-- **Scope**: Serves as the primary production-grade persistence layer, keeping all campaign logs alive permanently across Vercel cold starts, server idle states, and deployment overrides.
+- **Secure Bucket ID**: `lf_mall_ex_stats_v99` (Base URL: `https://kvdb.io/lf_mall_ex_stats_v99/`)
+- **Sharded Persistence Pattern (Avoiding the 64KB Limit)**:
+  - To prevent individual key size limits, raw events are **never** appended into a single large array.
+  - Instead, the database is sharded into:
+    - `metadata`: A dictionary mapping valid exhibition IDs to their titles and brands (e.g., `{"106251": { id: "106251", title: "(더캐리) 더캐리 패밀리 임직원 시크릿 특가전", brand: "더캐리" }}`).
+    - `daily_stats_YYYY-MM-DD`: Tiny, pre-aggregated daily performance snapshots containing PV, UV sets, clicks, stay duration logs, CVR, and revenue.
+    - `session_attributions`: Maps active sessions to their attributed exhibition IDs.
+    - `recent_logs`: The latest 25 debug events.
 
-### 2. Telemetry Log Data Schema / Format
-The database stores a flat, unified JSON array of user telemetry actions. Every event object must adhere strictly to the following structure:
-```typescript
-interface TelemetryEvent {
-  timestamp: number;                  // Millisecond UNIX timestamp (e.g., 1716880112345)
-  type: 'PAGE_VIEW' | 'CLICK' | 'ADD_TO_CART' | 'PURCHASE';
-  pageType: 'HOME' | 'CATEGORY' | 'PRODUCT_DETAIL' | 'CART' | 'CHECKOUT' | 'PURCHASE' | 'COMMON';
-  url: string;                       // Request URL path (e.g., "/app/event/103291")
-  sessionId: string;                 // Client session tracker UUID
-  userId: string;                    // Client cookie tracking ID
-  elementId?: string;                // Element ID for CLICK actions (e.g., "download-coupon-btn")
-  extra?: {
-    exhibitionId?: string;           // Extracted/Attributed Campaign ID
-    exhibitionTitle?: string;        // Extracted/Attributed Campaign Title
-    productId?: string;              // Product ID for cart/detail actions
-    price?: number;                  // Single item price in KRW
-    revenue?: number;                // Attributed transaction revenue in KRW
-    orderId?: string;                // E-commerce purchase transaction ID
-    attributedExhibitionId?: string; // Last-Touch Attributed Campaign ID for purchases
-  }
-}
-```
-
-### 3. Crucial Development & Maintenance Rules (Strictly Enforced)
-- **NO Local Disk Write Policies**: Do NOT write analytical logs to serverless local directories (like `db_store/` or `/tmp`) via `fs.appendFile` or `fs.writeFile` in production serverless environments. Any local writes will be permanently destroyed when Vercel scales down or redeploys.
-- **Hybrid In-Memory Caching Pattern (Performance)**:
-  - ALWAYS preheat and keep the `globalEventsCache` hot in `server.js`.
-  - **READ**: On `/api/stats`, return the memory cache `globalEventsCache` immediately to prevent gateway timeouts.
-  - **WRITE**: On `/api/collect`, append the new event into the `globalEventsCache` synchronously, then push the synced array to `KV_STORE_URL` asynchronously without `await` to maintain high API responsiveness.
-- **Self-Healing Fallback Seeding**: If the cloud database is wiped (e.g., via `/api/reset`) or returns an empty array, the server must automatically self-heal by calling `seedServerDatabase()` to restore a rich 5-day historic dataset, write it back to the cloud, and populate the memory cache.
-- **Attribution Compute Model**: All daily performance metrics, stay durations, clicks, and revenue metrics must be computed dynamically on-the-fly by parsing the entire chronological event list. Do not rely on static predefined databases.
+### 3. ⚙️ Crucial Development & Maintenance Rules
+- **Memory-First Cache (Speed & Safety)**:
+  - All writes update local memory variables synchronously for instant `0ms` response times.
+  - In serverless environments, state is synced to/from the cloud DB asynchronously in the background.
+  - On Vercel, the Lazy initialization promise gate ensures the memory cache is warmed up from KVDB before handling request payloads.
+- **Self-Healing Fallback Seeding**:
+  - If database wipe is triggered via `/api/reset`, the system automatically calls `seedServerDatabase()`, restoring a 100% deterministic 5-day historic baseline dataset for `106251` (더캐리) and `111584` (이달의 베스트 슈즈), and clearing out any invalid campaign IDs (such as `992831` or `301`).
+- **Attribution Compute Model**:
+  - The `/api/stats?startDate=...&endDate=...` endpoint dynamically reads and aggregates stats across the chosen date scope, guaranteeing 100% stable, non-fluctuating figures on F5 refresh.
