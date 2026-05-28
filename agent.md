@@ -19,28 +19,32 @@
 
 ```markdown
 ├── index.html                    # 메인 뷰포트 (React Standalone 구동, 단독 구동 및 라이브 연동 통합 파일)
-├── server.js                     # Express 백엔드 (시뮬레이터, 인메모리 세션/Attribution 집계 API)
+├── server.js                     # Express 백엔드 (JSONL 데이터베이스 파티셔닝, CORS Credentials 가드 및 수집/Attribution API)
 ├── style.css                     # Clay.com 스타일 디자인 시스템 CSS 규칙 및 마이크로 인터랙션 모션
+├── vercel.json                   # Vercel 배포/라우팅 룰 구성 및 static components/ 폴더 다이렉트 바이패스 매핑
 ├── tracker.js                    # [Legacy] 클라이언트 통계 트래커 유틸리티
 ├── app.js / dashboard.js         # [Legacy] 초기 분할 뷰 코디네이터 및 대시보드 리포팅 모듈
 ├── store.js                      # [Legacy] 시뮬레이션용 모의 프론트 쇼핑몰 상점 레이아웃
+├── components/                   # [물리 모듈 분할 컴포넌트 폴더]
+│   ├── Icons.js                  # 13종 격리형 커스텀 인라인 SVG 아이콘 모듈
+│   ├── FunnelChart.js            # SVG 기반 5단계 퍼널 분석 시각화 컴포넌트
+│   ├── CampaignGrid.js           # 브랜드명 파싱, 브랜드별 테마 및 지표 출력 그리드 및 레이지 로더 컴포넌트
+│   └── Dashboard.js              # 조회 기간 프론트 맵, 스코어카드 및 daily-trend SVG 라인 곡선 차트 핵심 컴포넌트
 ├── exhibition_analytics_icon.png # 대시보드 메인 브랜드 로고 및 탭 파비콘 이미지
 └── agent.md                      # [본 문서] 시스템 가이드 및 개발 에이전트 룰 규정 파일
 ```
 
 ### 💻 각 레이어별 세부 구조
 
-#### A. 프론트엔드 대시보드 (`index.html`)
-- **React Standalone & Babel**: 빌드(Webpack/Vite 등) 도구 없이 브라우저에서 직접 React 18과 JSX를 해석하는 ESM 구조로 가동됩니다.
+#### A. 프론트엔드 대시보드 (`index.html` & `components/*`)
+- **초경량 오케스트레이터 구조**: `index.html` 본체는 약 50라인의 초경량 구조로 React Standalone 런타임 탑재 및 `components/` 하위 모듈들을 `<script type="text/babel" src="...">` 방식으로 로드하여 마운팅하는 오케스트레이터 역할에 한정됩니다.
+- **물리적 분할 컴포넌트 아키텍처**: 비주얼 카드 그리드, 인라인 SVG 아이콘, SVG 퍼널 차트, 스코어카드 및 daily-trend 에어리어 차트 등 모든 구성 요소는 `components/` 폴더 아래 물리적 모듈로 엄격히 격리 분할되어 구동됩니다.
 - **인터랙티브 SVG 트렌드 차트**: 외부 라이브러리(Chart.js, Recharts 등) 없이 React 내장 SVG 요소를 활용한 프리미엄 곡선 라인-에어리어 차트입니다. dynamic 툴팁 가이드선이 축에 완벽히 동기화됩니다.
-- **요약 카드 및 동적 토글**: `누적 데이터`와 `일 평균 데이터`를 실시간 스위칭하는 변환 파이프라인(`displayStats`, `displayFunnel`, `displayPages`)이 React `useMemo`로 바인딩되어 데이터의 지연 없이 순식간에 수치와 텍스트 라벨을 리밸런싱합니다.
-- **비주얼 카드 그리드 (무료 추천 GRID)**: 하단 캠페인 랭킹이 테이블 대신 카드 그리드로 구현되어 있습니다. 닥스(DAKS), 헤지스(HAZZYS) 등의 기획전명을 정규식으로 자동 해석하여 브랜드 맞춤 컬러 띠를 입혀 줍니다.
 - **레이지 로더 (Lazy Loader)**: 대량 데이터 로드로 인한 브라우저 병목을 방지하기 위해 최초 20개 카드를 로드하고 하단 버튼 클릭 시 비동기 스피너 모션(800ms)과 함께 10개씩 페이징 로딩됩니다.
 
 #### B. 백엔드 집계 엔진 (`server.js`)
-- **날짜별 분할 파일 데이터베이스 (Date-Based Sharded DB)**:
-  - 트래픽 누적으로 인한 메모리 병목 및 파일 크기 비대화를 원천 차단하기 위해 모든 로그는 타임스탬프 일자(`YYYY-MM-DD`)를 기준 파일(`events-YYYY-MM-DD.json`)에 분할 적재됩니다.
-  - `/api/stats` 호출 시, 선택한 기간에 일치하는 물리 파티션 파일들만 선택적으로 로드하여 병합 연산함으로써 극상의 디스크 I/O 최적화를 이끌어냅니다.
+- **고성능 JSON Lines (JSONL) DB 탑재**:
+  - 트래픽 대량 적재 시의 파일 쓰기 Lock 및 파싱 병목을 제거하기 위해 기존 JSON Array 구조를 탈피하고, 신규 유입 이벤트를 일자별 파일 `events-YYYY-MM-DD.jsonl` 끝에 `fs.promises.appendFile`로 O(1) 시간복잡도로 고속 Append하는 DB 아키텍처를 가동합니다.
 - **Vercel 서버리스 `/tmp` 최적화 및 인메모리 폴백 (In-Memory Fallback)**:
   - Vercel Serverless의 Read-Only 파일 시스템 특성을 극복하기 위해 서버 구동 환경을 실시간 감지하여 쓰기가 허용된 `/tmp/db_store` 디렉터리를 가동 경로로 동적 지정합니다.
   - 디렉터리 생성 및 쓰기/읽기 작업에서 파일 시스템 예외 발생 시, 즉시 **인메모리 분할 맵(`inMemoryDb`)**으로 폴백하여 에러율 0%의 탄탄한 서버리스 생존 아키텍처를 자랑합니다.
@@ -107,4 +111,12 @@ AI 에이전트가 데이터나 파이프라인 수정을 진행할 때는 아�
 *   **[규칙 10] 온더플라이(On-the-fly) 분석 루프 활성화**:
     - `/api/stats` 집계 엔진은 사전 정의되거나 정적 등록된 메타데이터 목록에 의존하여 루프를 돌아선 안 됩니다.
     - 누적 수집된 데이터 로그를 시간 순서대로 순회하며 새로운 기획전 ID가 감지되는 즉시, 통계 맵 객체(`exhibitionStats`)를 **실시간 동적 개설(On-the-fly)**하여 PAGE_VIEW, CLICK, PURCHASE 데이터의 유실이 전혀 없이 정확하게 합산되도록 연산 흐름을 완벽히 지켜내야 합니다.
+*   **[규칙 11] React SPA(Single Page Application) 환경 GTM 수집 대응 규칙 (NEW)**:
+    - LFmall 등 React 기반의 SPA 서비스는 브라우저 전체 리로드가 발생하지 않으므로, GTM 태그 내에 일반 `페이지뷰(Page View)` 트리거를 걸어둘 시 가상 라우팅 유입이 완전 누락되는 보틀넥이 발생합니다.
+    - 이에 대응하여 반드시 GTM 상에 **`히스토리 변경(History Change)` 트리거**를 걸어 `gtm.historyChange` 이벤트를 PAGE_VIEW로 치환 맵핑하여 데이터 유실율 0%의 수집 환경을 조성해야 합니다.
+    - 백엔드 수집기(`server.js`)는 GTM 히스토리 패킷이 매핑되는 `/exhibitions/` 및 `/app/event/` 등 다각화된 URL 규칙을 모두 네이티브 정규식으로 안전하게 수용 및 정밀 파싱하도록 구조를 영구 사수해야 합니다.
+*   **[규칙 12] Express & Vercel 정적 모듈 서빙 규칙 (NEW)**:
+    - 리팩토링된 `/components` 하위의 자바스크립트 파일들이 라이브 서버에서 404 혹은 wildcard fallback에 걸려 `index.html` 구문을 반환하고 `SyntaxError: Unexpected token '<'`를 유발하는 현상을 철저히 방지해야 합니다.
+    - 이를 위해 `vercel.json`의 routes 규칙에 `components/.*`를 bypass로 명시 등록하고, 백엔드 서버 `server.js`에도 `app.use('/components', express.static(...))`을 명시적으로 선언하여 올바른 정적 자바스크립트 마임타입(`application/javascript`) 서빙 환경을 보장해야 합니다.
+
 
