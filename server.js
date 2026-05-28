@@ -260,7 +260,13 @@ function crawlExhibitionTitle(exhibitionId) {
             .replace(/\s*[|:\-]\s*(LFmall|엘에프몰|LF몰|LFMALL|lf몰|LFmall\.com)\s*$/gi, '')
             .replace(/\s*[|:\-]\s*나를 나답게.*$/gi, '')
             .trim();
-          if (title && title.length > 1 && !/^(LFmall|엘에프몰|LF몰|LFMALL|home|홈|main|메인)$/i.test(title)) {
+          
+          // Reject generic SPA default titles
+          const isGeneric = /^(LFmall|엘에프몰|LF몰|LFMALL|home|홈|main|메인)$/i.test(title) ||
+                            title.includes('나를 나답게 LFmall') ||
+                            title === 'LFmall.com';
+                            
+          if (title && title.length > 1 && !isGeneric) {
             console.log(`[CRAWL] ${exhibitionId} → title: "${title}"`);
             resolve(title);
             return;
@@ -273,7 +279,12 @@ function crawlExhibitionTitle(exhibitionId) {
           let title = (ogMatch[1] || ogMatch[2])
             .replace(/\s*[|:\-]\s*(LFmall|엘에프몰|LF몰|LFMALL|lf몰)\s*$/gi, '')
             .trim();
-          if (title && title.length > 1 && !/^(LFmall|엘에프몰|LF몰|LFMALL)$/i.test(title)) {
+            
+          const isGeneric = /^(LFmall|엘에프몰|LF몰|LFMALL|home|홈|main|메인)$/i.test(title) ||
+                            title.includes('나를 나답게 LFmall') ||
+                            title === 'LFmall.com';
+                            
+          if (title && title.length > 1 && !isGeneric) {
             console.log(`[CRAWL] ${exhibitionId} → og:title: "${title}"`);
             resolve(title);
             return;
@@ -304,7 +315,7 @@ async function getVerifiedExhibitionTitle(exhibitionId) {
   if (crawledTitleCache[exhibitionId]) return crawledTitleCache[exhibitionId];
   
   // 2. Check Redis cache
-  const cached = await redisGet(`lfmall:verified_title:${exhibitionId}`);
+  const cached = await redisGet(`lfmall:verified_title_v2:${exhibitionId}`);
   if (cached) {
     crawledTitleCache[exhibitionId] = cached;
     return cached;
@@ -314,7 +325,7 @@ async function getVerifiedExhibitionTitle(exhibitionId) {
   const title = await crawlExhibitionTitle(exhibitionId);
   if (title) {
     crawledTitleCache[exhibitionId] = title;
-    await redisSet(`lfmall:verified_title:${exhibitionId}`, title);
+    await redisSet(`lfmall:verified_title_v2:${exhibitionId}`, title);
     return title;
   }
   
