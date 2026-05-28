@@ -123,5 +123,12 @@ AI 에이전트가 데이터나 파이프라인 수정을 진행할 때는 아�
 *   **[규칙 12] Express & Vercel 정적 모듈 서빙 규칙 (NEW)**:
     - 리팩토링된 `/components` 하위의 자바스크립트 파일들이 라이브 서버에서 404 혹은 wildcard fallback에 걸려 `index.html` 구문을 반환하고 `SyntaxError: Unexpected token '<'`를 유발하는 현상을 철저히 방지해야 합니다.
     - 이를 위해 `vercel.json`의 routes 규칙에 `components/.*`를 bypass로 명시 등록하고, 백엔드 서버 `server.js`에도 `app.use('/components', express.static(...))`을 명시적으로 선언하여 올바른 정적 자바스크립트 마임타입(`application/javascript`) 서빙 환경을 보장해야 합니다.
+*   **[규칙 13] 특정 기획전 ID 하드코딩 땜질 전면 금지 (CRITICAL)**:
+    - 특정 기획전 ID(예: `106251` 등)를 코드 수준에서 명시적으로 지목하여 조건문 분기로 수동 타이틀을 매핑하는 어떠한 임시 땜질식 하드코딩도 **영구적으로 절대 금지**합니다.
+    - 모든 데이터 파이프라인과 수집 로직은 철저하게 클라이언트가 전송한 데이터 및 데이터베이스 인스턴스에 누적된 상태에 기반해 **유기적이고 논리적인(Logic-based) 공통 루틴**으로만 동작해야 합니다.
+*   **[규칙 14] Upstash Redis REST 통신 시 UTF-8 인코딩 명시적 가드 의무화 (CRITICAL)**:
+    - Node.js `https` 라이브러리를 통해 외부 REST API와 한국어 문자열 데이터를 주고받을 때 발생할 수 있는 데이터 훼손(예: 한글 물음표 `?` 깨짐 현상)을 완전히 방지해야 합니다.
+    - REST 요청을 보낼 때는 전송 바디를 `Buffer.from(body, 'utf8')`로 바이너리화하여 길이를 지정하고, 헤더에 `Content-Type: application/json; charset=utf-8`을 선언하며, 응답을 읽을 때는 `res.setEncoding('utf8')`을 무조건 선언하여 인코딩 무결성을 영구 보장하십시오.
+
 
 
