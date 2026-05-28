@@ -119,12 +119,16 @@ The data flow operates as an optimized, lightweight real-time telemetry model wi
    - Automatically captures real-time events (`PAGE_VIEW`, `CLICK`, `ADD_TO_CART`, `PURCHASE`).
    - Captures the exact URL path and extracts `exhibitionId` (e.g., `/app/event/106251` or `/planning.do?datacls=992831`).
    - Extracts the page title directly from the DOM (`document.title`) and passes it as `exhibitionTitle` in the payload, bypassing the need for a separate server-side web crawler.
-2. **Telemetry Ingestion (`server.js` -> `/api/collect`)**:
+2. **Telemetry Ingestion & Isolated Processing Modules (`campaignTitleResolver.js` & `campaignAttributionResolver.js`)**:
    - GTM posts telemetry events to `/api/collect`.
-   - **Title Normalization**: To prevent SPA loading lag from submitting generic titles (like `LFmall.com` or `나를 나답게`), the server enforces strict normalization rules:
-     - **`106251`** -> Fixed to **`(더캐리) 더캐리 패밀리 임직원 시크릿 특가전`**, brand `더캐리`.
-     - Generic or fallback titles containing `LFmall.com` or `나를 나답게` are safely cleaned to `기획전 캠페인_${exhibitionId}`.
-   - **Session Last-Touch Attribution**: Attributes subsequent downstream events (clicks, add-to-carts, revenue) to the last visited exhibition ID using session tracking.
+   - **Dynamic Campaign Title Lock (`campaignTitleResolver.js`)**:
+     - Prevent title corruption (e.g. from downstream product details or generic lag pages).
+     - Allows dynamic updates for generic placeholder strings (like `"기획전 캠페인"`, `"LFmall"`), but locks down the campaign name once a valid, concrete title is identified (Permanent Title Lock).
+     - Hardcoding-based rules for specific campaign titles are strictly forbidden. All resolves must happen logically.
+   - **7-Day Touchpoint Matching Model (`campaignAttributionResolver.js`)**:
+     - Attributes purchase revenue to the correct campaign by retroactively matching purchase events (`PURCHASE`) against the user's (`userId` or `sessionId`) action logs within a 7-day time window.
+     - Scans the history buffer (up to 2,000 recent logs) to check if the user had visited the campaign's `PRODUCT_DETAIL` page for that specific product before buying.
+     - Avoids losing attribution when users leave active sessions to login, checkout, or cart-view pages.
 
 ### 2. 🗄️ Database Location & Sharded Storage Engine
 - **Cloud Database Engine**: High-performance, highly available cloud-hosted Key-Value storage API powered by **kvdb.io**.
@@ -132,17 +136,18 @@ The data flow operates as an optimized, lightweight real-time telemetry model wi
 - **Sharded Persistence Pattern (Avoiding the 64KB Limit)**:
   - To prevent individual key size limits, raw events are **never** appended into a single large array.
   - Instead, the database is sharded into:
-    - `metadata`: A dictionary mapping valid exhibition IDs to their titles and brands (e.g., `{"106251": { id: "106251", title: "(더캐리) 더캐리 패밀리 임직원 시크릿 특가전", brand: "더캐리" }}`).
+    - `metadata`: A dictionary mapping valid exhibition IDs to their titles and brands.
     - `daily_stats_YYYY-MM-DD`: Tiny, pre-aggregated daily performance snapshots containing PV, UV sets, clicks, stay duration logs, CVR, and revenue.
     - `session_attributions`: Maps active sessions to their attributed exhibition IDs.
-    - `recent_logs`: The latest 25 debug events.
+    - `recent_logs`: The latest 2,000 debug events buffer for historical lookback.
 
 ### 3. ⚙️ Crucial Development & Maintenance Rules
 - **Memory-First Cache (Speed & Safety)**:
   - All writes update local memory variables synchronously for instant `0ms` response times.
   - In serverless environments, state is synced to/from the cloud DB asynchronously in the background.
   - On Vercel, the Lazy initialization promise gate ensures the memory cache is warmed up from KVDB before handling request payloads.
-- **Self-Healing Fallback Seeding**:
-  - If database wipe is triggered via `/api/reset`, the system automatically calls `seedServerDatabase()`, restoring a 100% deterministic 5-day historic baseline dataset for `106251` (더캐리) and `111584` (이달의 베스트 슈즈), and clearing out any invalid campaign IDs (such as `992831` or `301`).
+- **Zero-State Clean Reset Policy**:
+  - If database wipe is triggered via `/api/reset`, the system must NOT inject any fake seed data or mock history.
+  - The system must reset the database to an absolute zero-state (Empty structures `{}`) and only accumulate real-time visitor actions to ensure 100% telemetry data integrity.
 - **Attribution Compute Model**:
-  - The `/api/stats?startDate=...&endDate=...` endpoint dynamically reads and aggregates stats across the chosen date scope, guaranteeing 100% stable, non-fluctuating figures on F5 refresh.
+  - The `/api/stats?startDate=...&endDate=...` endpoint delegates processing to `campaignAttributionResolver.js` for retroactive 7-day touchpoint matching and `campaignTitleResolver.js` for clean locked metadata, guaranteeing 100% stable, non-fluctuating figures on F5 refresh.

@@ -25,6 +25,8 @@
 ```markdown
 ├── index.html                    # 메인 뷰포트 (React Standalone 구동, 단독 구동 및 라이브 연동 통합 파일)
 ├── server.js                     # Express 백엔드 (JSONL 데이터베이스 파티셔닝, CORS Credentials 가드 및 수집/Attribution API)
+├── campaignTitleResolver.js      # [NEW] 상태 감지 기반 기획전명 수집 및 영구 락(Lock) 엔진 모듈
+├── campaignAttributionResolver.js# [NEW] 7일 타임윈도우 터치 포인트 매칭 기반 기여 매출 산출 모듈
 ├── style.css                     # Clay.com 스타일 디자인 시스템 CSS 규칙 및 마이크로 인터랙션 모션
 ├── vercel.json                   # Vercel 배포/라우팅 룰 구성 및 static components/ 폴더 다이렉트 바이패스 매핑
 ├── tracker.js                    # [Legacy] 클라이언트 통계 트래커 유틸리티
@@ -129,6 +131,12 @@ AI 에이전트가 데이터나 파이프라인 수정을 진행할 때는 아�
 *   **[규칙 14] Upstash Redis REST 통신 시 UTF-8 인코딩 명시적 가드 의무화 (CRITICAL)**:
     - Node.js `https` 라이브러리를 통해 외부 REST API와 한국어 문자열 데이터를 주고받을 때 발생할 수 있는 데이터 훼손(예: 한글 물음표 `?` 깨짐 현상)을 완전히 방지해야 합니다.
     - REST 요청을 보낼 때는 전송 바디를 `Buffer.from(body, 'utf8')`로 바이너리화하여 길이를 지정하고, 헤더에 `Content-Type: application/json; charset=utf-8`을 선언하며, 응답을 읽을 때는 `res.setEncoding('utf8')`을 무조건 선언하여 인코딩 무결성을 영구 보장하십시오.
+*   **[규칙 15] 상태 감지 기반 기획전명 수집 및 영구 락(Lock) 엔진 탑재 (`campaignTitleResolver.js`) (CRITICAL)**:
+    - 기획전 상세 진입 시점에 GTM을 통해 임시 타이틀(예: `"기획전 캠페인"`, `"LFmall"`, `"브랜드"` 등 유의미하지 않은 플레이스홀더 명칭)이 먼저 수집될 수 있으므로, 진짜 의미 있는 기획전명이 유입될 때 동적으로 덮어씁니다.
+    - 이후 상품 상세 화면으로 유저가 이동하면서 기획전 타이틀 영역이 특정 상품명(예: `"바쉬, 바이올렛 단색 니트베스트"`)으로 오염되는 것을 완벽하게 방지하기 위해, 한 번 의미 있는 진짜 기획전명으로 확정된 명칭은 **영구 락(Lock)** 처리하여 오염 데이터를 원천 차단하고 정합성을 유지해야 합니다.
+*   **[규칙 16] 7일 타임윈도우 터치포인트 매칭 기반 기여 매출 산출 엔진 탑재 (`campaignAttributionResolver.js`) (CRITICAL)**:
+    - 단순 세션 브라우저 기록에만 의존할 경우, 사용자가 장바구니/체크아웃 페이지로 이동하면서 Attribution 세션이 지워지거나 오염되어 기여 매출액이 `0`으로 유실되는 문제가 발생합니다.
+    - 이를 해결하기 위해 사용자가 최종 구매(`PURCHASE`)한 시점에, 해당 사용자(`userId` 또는 `sessionId`)가 **최근 7일 이내**에 동일한 상품을 특정 기획전 내에서 조회(`PRODUCT_DETAIL` 또는 `PAGE_VIEW`)했었는지를 수집된 이벤트 버퍼(최근 최대 2,000개 이력 버퍼 범위)에서 역추적(Retroactive Matching)하여 기여 매출 및 기여 주문수로 매핑하는 고성능 이커머스 최적화 어트리뷰션 모델을 상시 가동해야 합니다.
 
 
 
