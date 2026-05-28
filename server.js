@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const campaignTitleResolver = require('./campaignTitleResolver');
 const campaignAttributionResolver = require('./campaignAttributionResolver');
+const campaignProxy = require('./campaignProxy');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -581,6 +582,72 @@ app.get('/api/stats', async (req, res) => {
     dailyPerformance,
     logs: recentLogs.slice(-25).reverse()
   });
+});
+
+// [NEW] API: LFmall 모바일 기획전 HTML CORS 회피 프록시
+app.get('/api/proxy-exhibition', async (req, res) => {
+  const { id } = req.query;
+  if (!id) {
+    return res.status(400).send('기획전 ID(id)가 누락되었습니다.');
+  }
+
+  try {
+    const html = await campaignProxy.fetchAndCleanExhibition(id);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    console.error(`[PROXY-ERROR] Failed to proxy campaign ${id}:`, err.message);
+    res.status(500).send(`LFmall 기획전 화면을 불러오는 데 실패했습니다: ${err.message}`);
+  }
+});
+
+// [NEW] API: 특정 기획전의 요소(Class)별 클릭 통계 집계
+app.get('/api/campaign-clicks', async (req, res) => {
+  await ensureDbInitialized();
+  const { id } = req.query;
+  if (!id) {
+    return res.status(400).json({ success: false, message: '기획전 ID(id)가 누락되었습니다.' });
+  }
+
+  try {
+    const recentLogs = await fetchRecentLogs();
+    
+    // 이 기획전에서 발생한 CLICK 이벤트 필터링
+    const campaignClicks = recentLogs.filter(log => {
+      const logExId = log.extra?.exhibitionId || log.elementId; // fallback
+      return logExId === id && log.type === 'CLICK';
+    });
+
+    // elementClass 또는 elementPath 기준 집계
+    const counts = {};
+    campaignClicks.forEach(log => {
+      // tracker.js에서 extra.elementClass 또는 extra.elementId, extra.elementPath 형태로 적재함
+      const targetClass = log.extra?.elementClass || log.elementId || '';
+      if (!targetClass) return;
+
+      // 단일 클래스로만 매칭하기 위해 여러 개 클래스(공백 구분) 중 첫 번째 혹은 대표 클래스를 사용하거나 
+      // 탐색의 정밀도를 위해 공백이 있는 클래스 문자열 그대로 사용
+      if (!counts[targetClass]) {
+        counts[targetClass] = 0;
+      }
+      counts[targetClass]++;
+    });
+
+    // 결과를 배열로 변환
+    const clickStatsList = Object.keys(counts).map(elementClass => ({
+      elementClass,
+      clickCount: counts[elementClass]
+    })).sort((a, b) => b.clickCount - a.clickCount);
+
+    res.json({
+      success: true,
+      exhibitionId: id,
+      clicks: clickStatsList
+    });
+  } catch (err) {
+    console.error(`[CLICKS-API-ERROR] Failed to aggregate clicks for ${id}:`, err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 // 3. Clear Database

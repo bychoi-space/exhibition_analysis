@@ -18,6 +18,7 @@
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel" src="./components/CampaignDetail.js"></script>
 </head>
 <body>
   
@@ -130,7 +131,7 @@
     // ==========================================================================
     // 3. CampaignGrid COMPONENT (Campaign ledger table/cards sorting)
     // ==========================================================================
-    const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, isLoadingMore, setIsLoadingMore }) => {
+    const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, isLoadingMore, setIsLoadingMore, onSelectCampaign }) => {
       const [layoutMode, setLayoutMode] = React.useState('list'); // Default to list!
       const [sortField, setSortField] = React.useState('pv'); // Default sorting field: accumulated PV
       const [sortDirection, setSortDirection] = React.useState('desc'); // Default: descending
@@ -306,7 +307,7 @@
                     const rankEmoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`;
 
                     return (
-                      <tr key={p.id || idx}>
+                      <tr key={p.id || idx} style={{ cursor: 'pointer', transition: 'background-color 0.2s' }} onClick={() => onSelectCampaign(p.id, p)} className="clickable-row">
                         <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: isTop3 ? '16px' : '13px' }}>
                           {rankEmoji}
                         </td>
@@ -369,7 +370,7 @@
                 const brandColor = getBrandColor(brandName);
 
                 return (
-                  <div key={p.id || idx} className="campaign-card" style={{ '--card-brand-color': brandColor }}>
+                  <div key={p.id || idx} className="campaign-card clickable-card" style={{ '--card-brand-color': brandColor, cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => onSelectCampaign(p.id, p)}>
                     <div className="campaign-card-brand-stripe" style={{ backgroundColor: brandColor }} />
                     <div className="campaign-card-header">
                       <span className="campaign-card-brand" style={{ backgroundColor: `${brandColor}15`, color: brandColor }}>
@@ -458,7 +459,7 @@
     // ==========================================================================
     // 4. AnalyticsDashboard COMPONENT (Main Dashboard Page Orchestrator)
     // ==========================================================================
-    const AnalyticsDashboard = () => {
+    const AnalyticsDashboard = ({ onSelectCampaign }) => {
       const getFormattedDate = (offsetDays = 0) => {
         const d = new Date();
         d.setDate(d.getDate() - offsetDays);
@@ -1102,6 +1103,7 @@
             setVisibleCount={setVisibleCount}
             isLoadingMore={isLoadingMore}
             setIsLoadingMore={setIsLoadingMore}
+            onSelectCampaign={onSelectCampaign}
           />
         </div>
       );
@@ -1109,11 +1111,30 @@
 
     // Main App Mounting bootsrapper
     function App() {
+      const [view, setView] = useState('dashboard');
+      const [selectedId, setSelectedId] = useState(null);
+      const [selectedData, setSelectedData] = useState(null);
+
+      const handleSelectCampaign = (id, data) => {
+        setSelectedId(id);
+        setSelectedData(data);
+        setView('detail');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
       return (
         <div className="app-container">
           <main className="workspace-frame">
             <div className="pane dashboard-pane-container" style={{ width: '100%' }}>
-              <AnalyticsDashboard />
+              {view === 'dashboard' ? (
+                <AnalyticsDashboard onSelectCampaign={handleSelectCampaign} />
+              ) : (
+                <CampaignDetail 
+                  campaignId={selectedId} 
+                  campaignData={selectedData} 
+                  onBack={() => setView('dashboard')} 
+                />
+              )}
             </div>
           </main>
         </div>
