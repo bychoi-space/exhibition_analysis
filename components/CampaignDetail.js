@@ -180,100 +180,128 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
         <span style={{ color: 'var(--colors-muted)', fontSize: '13px' }}>기획전 분석 상세 뷰 (아이디: #{campaignId})</span>
       </div>
 
-      {/* 상단 메타데이터 패널 - 컴팩트화 */}
-      <div className="detail-metadata-card" style={{
-        background: 'var(--colors-surface-card)',
-        padding: '12px 20px',
-        borderRadius: 'var(--rounded-md)',
-        border: '1px solid var(--colors-hairline)',
+      {/* 상단 메타데이터 & 성과 요약 그리드 수평 한 줄 결합 통합 배치 */}
+      <div className="detail-top-bar-layout" style={{
+        display: 'grid',
+        gridTemplateColumns: '320px 1fr',
+        gap: '16px',
+        alignItems: 'stretch',
         marginBottom: '16px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-          <span className="brand-badge" style={{
+        {/* 좌측: 상단 메타데이터 패널 */}
+        <div className="detail-metadata-card" style={{
+          background: 'var(--colors-surface-card)',
+          padding: '12px 16px',
+          borderRadius: 'var(--rounded-md)',
+          border: '1px solid var(--colors-hairline)',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <span className="brand-badge" style={{
+              background: 'var(--colors-brand-teal)',
+              color: 'white',
+              padding: '2px 8px',
+              borderRadius: 'var(--rounded-xs)',
+              fontSize: '11px',
+              fontWeight: '600'
+            }}>{brandName}</span>
+            <span style={{ fontSize: '11px', color: 'var(--colors-muted)', fontWeight: '500' }}>ID: #{campaignId}</span>
+          </div>
+          <h1 style={{
+            fontSize: '17px',
+            fontWeight: '600',
+            color: 'var(--colors-ink)',
+            letterSpacing: '-0.5px',
+            margin: 0,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }} title={cleanTitle}>{cleanTitle}</h1>
+        </div>
+
+        {/* 우측: 성과 요약 스코어카드 그리드 (5열 수평 배치) */}
+        <div className="detail-stats-grid" style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(5, 1fr)',
+          gap: '10px'
+        }}>
+          {/* 누적 PV 카드 */}
+          <div className="detail-stat-card card-pink" style={{
+            background: 'var(--colors-surface-soft)',
+            borderLeft: '4px solid var(--colors-brand-pink)',
+            padding: '10px 12px',
+            borderRadius: 'var(--rounded-sm)',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.01)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+          }}>
+            <div style={{ fontSize: '10px', color: 'var(--colors-muted)', fontWeight: '600', marginBottom: '2px', textTransform: 'uppercase' }}>페이지뷰 (PV)</div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--colors-ink)' }}>{stats.pv.toLocaleString()}</div>
+          </div>
+
+          {/* 순방문자 UV 카드 */}
+          <div className="detail-stat-card card-peach" style={{
+            background: 'var(--colors-surface-soft)',
+            borderLeft: '4px solid var(--colors-brand-peach)',
+            padding: '10px 12px',
+            borderRadius: 'var(--rounded-sm)',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.01)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+          }}>
+            <div style={{ fontSize: '10px', color: 'var(--colors-muted)', fontWeight: '600', marginBottom: '2px', textTransform: 'uppercase' }}>순방문자 (UV)</div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--colors-ink)' }}>{stats.uv.toLocaleString()}</div>
+          </div>
+
+          {/* 총 클릭 수 카드 */}
+          <div className="detail-stat-card card-ochre" style={{
+            background: 'var(--colors-surface-soft)',
+            borderLeft: '4px solid var(--colors-brand-ochre)',
+            padding: '10px 12px',
+            borderRadius: 'var(--rounded-sm)',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.01)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+          }}>
+            <div style={{ fontSize: '10px', color: 'var(--colors-muted)', fontWeight: '600', marginBottom: '2px', textTransform: 'uppercase' }}>클릭활동량</div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--colors-ink)' }}>{stats.clicks.toLocaleString()}</div>
+          </div>
+
+          {/* CVR 전환율 카드 */}
+          <div className="detail-stat-card card-lavender" style={{
+            background: 'var(--colors-surface-soft)',
+            borderLeft: '4px solid var(--colors-brand-lavender)',
+            padding: '10px 12px',
+            borderRadius: 'var(--rounded-sm)',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.01)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+          }}>
+            <div style={{ fontSize: '10px', color: 'var(--colors-muted)', fontWeight: '600', marginBottom: '2px', textTransform: 'uppercase' }}>전환율 (CVR)</div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--colors-ink)' }}>{stats.cvr}</div>
+          </div>
+
+          {/* 기여 매출액 카드 */}
+          <div className="detail-stat-card card-teal" style={{
             background: 'var(--colors-brand-teal)',
-            color: 'white',
-            padding: '2px 8px',
-            borderRadius: 'var(--rounded-xs)',
-            fontSize: '11px',
-            fontWeight: '600'
-          }}>{brandName}</span>
-          <span style={{ fontSize: '12px', color: 'var(--colors-muted)', fontWeight: '500' }}>Exhibition ID: #{campaignId}</span>
-        </div>
-        <h1 style={{
-          fontSize: '20px',
-          fontWeight: '600',
-          color: 'var(--colors-ink)',
-          letterSpacing: '-0.8px',
-          margin: 0
-        }}>{cleanTitle}</h1>
-      </div>
-
-      {/* 성과 요약 스코어카드 그리드 (5열 수평 배치) - 컴팩트화 */}
-      <div className="detail-stats-grid" style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(5, 1fr)',
-        gap: '12px',
-        marginBottom: '20px'
-      }}>
-        {/* 누적 PV 카드 */}
-        <div className="detail-stat-card card-pink" style={{
-          background: 'var(--colors-surface-soft)',
-          borderLeft: '4px solid var(--colors-brand-pink)',
-          padding: '10px 14px',
-          borderRadius: 'var(--rounded-sm)',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.01)'
-        }}>
-          <div style={{ fontSize: '11px', color: 'var(--colors-muted)', fontWeight: '500', marginBottom: '4px' }}>누적 페이지뷰 (PV)</div>
-          <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--colors-ink)' }}>{stats.pv.toLocaleString()} 회</div>
-        </div>
-
-        {/* 순방문자 UV 카드 */}
-        <div className="detail-stat-card card-peach" style={{
-          background: 'var(--colors-surface-soft)',
-          borderLeft: '4px solid var(--colors-brand-peach)',
-          padding: '10px 14px',
-          borderRadius: 'var(--rounded-sm)',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.01)'
-        }}>
-          <div style={{ fontSize: '11px', color: 'var(--colors-muted)', fontWeight: '500', marginBottom: '4px' }}>순 방문자수 (UV)</div>
-          <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--colors-ink)' }}>{stats.uv.toLocaleString()} 명</div>
-        </div>
-
-        {/* 총 클릭 수 카드 */}
-        <div className="detail-stat-card card-ochre" style={{
-          background: 'var(--colors-surface-soft)',
-          borderLeft: '4px solid var(--colors-brand-ochre)',
-          padding: '10px 14px',
-          borderRadius: 'var(--rounded-sm)',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.01)'
-        }}>
-          <div style={{ fontSize: '11px', color: 'var(--colors-muted)', fontWeight: '500', marginBottom: '4px' }}>누적 클릭 활동량</div>
-          <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--colors-ink)' }}>{stats.clicks.toLocaleString()} 회</div>
-        </div>
-
-        {/* CVR 전환율 카드 */}
-        <div className="detail-stat-card card-lavender" style={{
-          background: 'var(--colors-surface-soft)',
-          borderLeft: '4px solid var(--colors-brand-lavender)',
-          padding: '10px 14px',
-          borderRadius: 'var(--rounded-sm)',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.01)'
-        }}>
-          <div style={{ fontSize: '11px', color: 'var(--colors-muted)', fontWeight: '500', marginBottom: '4px' }}>구매 전환율 (CVR)</div>
-          <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--colors-ink)' }}>{stats.cvr}</div>
-        </div>
-
-        {/* 기여 매출액 카드 */}
-        <div className="detail-stat-card card-teal" style={{
-          background: 'var(--colors-brand-teal)',
-          borderLeft: '4px solid var(--colors-brand-mint)',
-          padding: '10px 14px',
-          borderRadius: 'var(--rounded-sm)',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.01)',
-          color: '#ffffff'
-        }}>
-          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', fontWeight: '500', marginBottom: '4px' }}>누적 기여 매출액</div>
-          <div style={{ fontSize: '16px', fontWeight: '700', color: '#ffffff' }}>₩{stats.revenue.toLocaleString()}</div>
+            borderLeft: '4px solid var(--colors-brand-mint)',
+            padding: '10px 12px',
+            borderRadius: 'var(--rounded-sm)',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.01)',
+            color: '#ffffff',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+          }}>
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)', fontWeight: '600', marginBottom: '2px', textTransform: 'uppercase' }}>기여 매출액</div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: '#ffffff' }}>₩{stats.revenue.toLocaleString()}</div>
+          </div>
         </div>
       </div>
 
