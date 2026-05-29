@@ -6,9 +6,13 @@ const { useState, useEffect, useMemo } = React;
 
 const AnalyticsDashboard = () => {
   const getFormattedDate = (offsetDays = 0) => {
-    const d = new Date();
-    d.setDate(d.getDate() - offsetDays);
-    return d.toISOString().split('T')[0];
+    const now = Date.now();
+    // 로컬 시간 오프셋을 배제하고 UTC+9(KST) 밀리초 보정을 기반으로 날짜를 완벽하게 구합니다.
+    const d = new Date(now + 9 * 60 * 60 * 1000 - offsetDays * 24 * 60 * 60 * 1000);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   };
 
   const [datePreset, setDatePreset] = useState('7d'); // '3d', '7d', '15d', '30d', 'custom'
@@ -224,8 +228,8 @@ const AnalyticsDashboard = () => {
   };
 
   const shouldShowLabel = (idx, total) => {
-    if (total <= 7) return true;
-    if (total <= 14) return idx % 2 === 0;
+    if (total <= 14) return true;
+    if (total <= 30) return idx % 2 === 0;
     return idx % 4 === 0 || idx === total - 1;
   };
 

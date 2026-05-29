@@ -65,6 +65,87 @@ function fetchAndCleanExhibition(exhibitionId) {
     });
 }
 
+// --- 기획전 타이틀 크롤링 중복 요청 방지용 인플라이트 맵 ---
+const _titleCrawlInflight = {};
+
+/**
+ * [NEW] LFmall 기획전 페이지에서 진짜 기획전명을 직접 크롤링하여 반환하는 경량 함수.
+ * GTM이 전송하는 exhibitionTitle은 SPA 레이스 컨디션으로 인해 신뢰할 수 없으므로,
+ * 서버가 직접 원본 LFmall 페이지에 접속하여 <title> 및 <meta og:title>에서 정확한 명칭을 추출합니다.
+ * 
+ * 동일 exhibitionId에 대한 동시 다발 크롤링 요청은 인플라이트 디듀플리케이션으로 단일화됩니다.
+ * 
+ * @param {string} exhibitionId 
+ * @returns {Promise<string|null>} 크롤링 성공 시 정제된 기획전명, 실패 시 null
+ */
+function fetchExhibitionTitle(exhibitionId) {
+  // 이미 동일 ID에 대한 크롤링이 진행 중이면 기존 Promise를 재활용
+  if (_titleCrawlInflight[exhibitionId]) {
+    return _titleCrawlInflight[exhibitionId];
+  }
+
+  const crawlPromise = (async () => {
+    try {
+      const startUrl = `https://www.lfmall.co.kr/app/event/${exhibitionId}`;
+      const rawHtml = await fetchUrlWithRedirects(startUrl);
+
+      if (!rawHtml || typeof rawHtml !== 'string') return null;
+
+      let extractedTitle = null;
+
+      // 1순위: <meta property="og:title"> — SEO 전용이라 가장 안정적
+      const ogMatch = rawHtml.match(/<meta[^>]*property\s*=\s*["']og:title["'][^>]*content\s*=\s*["']([^"']+)["']/i)
+                    || rawHtml.match(/<meta[^>]*content\s*=\s*["']([^"']+)["'][^>]*property\s*=\s*["']og:title["']/i);
+      if (ogMatch && ogMatch[1]) {
+        extractedTitle = ogMatch[1].trim();
+      }
+
+      // 2순위: <title> 태그
+      if (!extractedTitle) {
+        const titleMatch = rawHtml.match(/<title[^>]*>([^<]+)<\/title>/i);
+        if (titleMatch && titleMatch[1]) {
+          extractedTitle = titleMatch[1].trim();
+        }
+      }
+
+      if (!extractedTitle) return null;
+
+      // LFmall 공통 접미사 정제 (예: " - LFmall", " | 엘에프몰", " : LF몰" 등)
+      extractedTitle = extractedTitle
+        .replace(/\s*[|:\-–—]\s*(LFmall|엘에프몰|LF몰|LFMALL|lf몰)\s*$/gi, '')
+        .trim();
+
+      // 크롤링 결과가 사이트 범용 타이틀이면 무효 처리
+      const genericPatterns = [
+        /^(LFmall|엘에프몰|LF몰|LFMALL)$/i,
+        /나를 나답게/,
+        /^홈$/i,
+        /^home$/i,
+        /^메인$/i,
+        /^main$/i
+      ];
+      for (const pattern of genericPatterns) {
+        if (pattern.test(extractedTitle)) return null;
+      }
+
+      // 비정상적으로 짧은 타이틀(2자 이하)은 무효 처리
+      if (extractedTitle.length <= 2) return null;
+
+      console.log(`[TITLE-CRAWL] ID ${exhibitionId} → 크롤링 성공: "${extractedTitle}"`);
+      return extractedTitle;
+    } catch (err) {
+      console.warn(`[TITLE-CRAWL-ERROR] ID ${exhibitionId} 크롤링 실패: ${err.message}`);
+      return null;
+    } finally {
+      // 크롤링 완료 후 인플라이트 맵에서 제거
+      delete _titleCrawlInflight[exhibitionId];
+    }
+  })();
+
+  _titleCrawlInflight[exhibitionId] = crawlPromise;
+  return crawlPromise;
+}
+
 /**
  * 상대경로 리소스를 절대경로로 파싱하고 보안 요소를 제거하는 클리너 함수
  * @param {string} html 
@@ -112,5 +193,7 @@ function cleanExhibitionHtml(html) {
 }
 
 module.exports = {
-  fetchAndCleanExhibition
+  fetchAndCleanExhibition,
+  fetchExhibitionTitle
 };
+

@@ -158,10 +158,10 @@ async function saveMetadata(meta) {
   await redisSet('lfmall:metadata', meta);
 }
 
-async function fetchDailyStats(dateStr) {
+async function fetchDailyStats(dateStr, forceRefresh = false) {
   await ensureDbInitialized();
-  if (memoryDailyStats[dateStr]) return memoryDailyStats[dateStr];
-  // Cache miss → load from Redis
+  if (memoryDailyStats[dateStr] && !forceRefresh) return memoryDailyStats[dateStr];
+  // Cache miss or Force Refresh active → load fresh from Upstash Redis
   const data = await redisGet(`lfmall:daily_stats:${dateStr}`);
   if (data) memoryDailyStats[dateStr] = data;
   return memoryDailyStats[dateStr] || {};
@@ -194,12 +194,12 @@ async function saveSessionAttributions(attributions) {
 
 function getPastDateStrings(count) {
   const dates = [];
-  const now = new Date();
+  const now = Date.now();
   for (let i = count - 1; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+    const d = new Date(now + 9 * 60 * 60 * 1000 - i * 24 * 60 * 60 * 1000);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
     dates.push(`${y}-${m}-${day}`);
   }
   return dates;
@@ -273,25 +273,49 @@ app.post('/api/collect', async (req, res) => {
 
   // If we see a new exhibition, resolve and persist its title cleanly using the resolver module
   if (exhibitionId) {
-    const existing = metadata[exhibitionId];
+    const existingMeta = metadata[exhibitionId];
     const incomingTitle = safeExtra.exhibitionTitle;
 
-    // Use our state-aware domain resolver (First-Write-Wins with placeholder healing)
+    // Use our state-aware domain resolver [v2] (Crawl Priority with Fallback)
     const resolved = campaignTitleResolver.resolveExhibitionTitle(
-      existing ? existing.title : null,
+      existingMeta,
       incomingTitle
     );
 
     const finalTitle = resolved.title;
 
-    // Parse out brand name from resolved title
-    const brandMatch = finalTitle.match(/\(([^)]+)\)/);
-    const brand = brandMatch ? brandMatch[1] : 'LF MALL';
-
     // Persist to the database only when the resolver indicates a state change is required
     if (resolved.shouldUpdate) {
-      metadata[exhibitionId] = { id: exhibitionId, title: finalTitle, brand };
+      metadata[exhibitionId] = { 
+        id: exhibitionId, 
+        title: finalTitle, 
+        brand: resolved.brand,
+        crawled: resolved.crawled
+      };
       await saveMetadata(metadata);
+    }
+
+    // [v2] 비동기 크롤링 트리거 로직 추가 (crawled가 아직 false인 경우)
+    if (!metadata[exhibitionId]?.crawled) {
+      // 서버가 원본 LFmall 페이지를 백그라운드에서 직접 크롤링
+      campaignProxy.fetchExhibitionTitle(exhibitionId).then(async (crawledTitle) => {
+        if (crawledTitle) {
+          // 크롤링 성공 시 최신 메타데이터를 다시 불러와 덮어씀 (Race Condition 방어)
+          const latestMeta = await fetchMetadata();
+          const reResolved = campaignTitleResolver.resolveCrawledTitle(latestMeta[exhibitionId], crawledTitle);
+          
+          if (reResolved.shouldUpdate) {
+            latestMeta[exhibitionId] = {
+              id: exhibitionId,
+              title: reResolved.title,
+              brand: reResolved.brand,
+              crawled: reResolved.crawled
+            };
+            await saveMetadata(latestMeta);
+            console.log(`[TITLE-HEALED] ID ${exhibitionId} → 🚀 진짜 기획전명으로 복구됨: "${reResolved.title}"`);
+          }
+        }
+      }).catch(err => console.error(`[CRAWL-TRIGGER-ERR] ${err.message}`));
     }
 
     // Direct downstream telemetry payload to use the correct unified title
@@ -323,11 +347,11 @@ app.post('/api/collect', async (req, res) => {
     }
   }
 
-  // Extract YYYY-MM-DD for sharding
-  const dateObj = new Date(ts);
-  const y = dateObj.getFullYear();
-  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const d = String(dateObj.getDate()).padStart(2, '0');
+  // Extract YYYY-MM-DD for sharding in KST (UTC+9)
+  const dateObj = new Date(ts + 9 * 60 * 60 * 1000);
+  const y = dateObj.getUTCFullYear();
+  const m = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(dateObj.getUTCDate()).padStart(2, '0');
   const dateStr = `${y}-${m}-${d}`;
 
   // If we have a valid exhibition to attribute this event to, record daily stats!
@@ -399,18 +423,18 @@ app.get('/api/stats', async (req, res) => {
   const datesList = [];
   
   if (startDate && endDate) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = new Date(startDate + 'T00:00:00.000Z');
+    const end = new Date(endDate + 'T00:00:00.000Z');
     let current = new Date(start.getTime());
     let limit = 60; // Safety cap
     while (current <= end && limit > 0) {
-      const y = current.getFullYear();
-      const m = String(current.getMonth() + 1).padStart(2, '0');
-      const d = String(current.getDate()).padStart(2, '0');
+      const y = current.getUTCFullYear();
+      const m = String(current.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(current.getUTCDate()).padStart(2, '0');
       const dateStr = `${y}-${m}-${d}`;
       datesList.push(dateStr);
       dailyStatsMap[dateStr] = { date: dateStr, pv: 0, uvSet: new Set(), clicks: 0, revenue: 0 };
-      current.setDate(current.getDate() + 1);
+      current.setUTCDate(current.getUTCDate() + 1);
       limit--;
     }
   }
@@ -418,9 +442,9 @@ app.get('/api/stats', async (req, res) => {
   // Unified consolidated exhibitionStats map
   const consolidatedExStats = {};
 
-  // Fetch and aggregate daily statistics for each date in range
+  // Fetch and aggregate daily statistics for each date in range (Force fresh sync from Upstash Redis to bypass multi-instance sync issue)
   await Promise.all(datesList.map(async (dateStr) => {
-    const dailyStats = await fetchDailyStats(dateStr);
+    const dailyStats = await fetchDailyStats(dateStr, true);
     
     Object.keys(dailyStats).forEach(exId => {
       const sourceNode = dailyStats[exId];

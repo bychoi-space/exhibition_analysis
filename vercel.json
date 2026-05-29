@@ -8,6 +8,7 @@
         "includeFiles": [
           "exhibition_analytics_icon.png",
           "style.css",
+          "detail.html",
           "components/**"
         ]
       }
@@ -15,7 +16,7 @@
   ],
   "routes": [
     {
-      "src": "/(style.css|exhibition_analytics_icon.png|app.js|store.js|dashboard.js|tracker.js|components/.*)",
+      "src": "/(style.css|exhibition_analytics_icon.png|detail.html|app.js|store.js|dashboard.js|tracker.js|components/.*)",
       "continue": true
     },
     {

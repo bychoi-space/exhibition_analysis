@@ -140,7 +140,10 @@ const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, i
                   브랜드 {renderSortArrow('brand')}
                 </th>
                 <th onClick={() => handleSort('title')} style={{ cursor: 'pointer' }}>
-                  기획전 캠페인명 {renderSortArrow('title')}
+                  기획전 명칭 {renderSortArrow('title')}
+                </th>
+                <th onClick={() => handleSort('id')} style={{ width: '90px', textAlign: 'center', cursor: 'pointer' }}>
+                  기획전 번호 {renderSortArrow('id')}
                 </th>
                 <th onClick={() => handleSort('pv')} style={{ textAlign: 'right', cursor: 'pointer' }}>
                   {viewMode === 'average' ? '일 평균 PV' : '누적 PV'} {renderSortArrow('pv')}
@@ -211,10 +214,10 @@ const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, i
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontWeight: '600', color: 'var(--colors-ink)', fontSize: '14px' }}>{cleanTitle}</span>
-                        <span style={{ fontSize: '11px', color: 'var(--colors-muted-soft)', marginTop: '2px' }}>ID: #{p.id}</span>
-                      </div>
+                      <span style={{ fontWeight: '600', color: 'var(--colors-ink)', fontSize: '14px' }}>{cleanTitle}</span>
+                    </td>
+                    <td style={{ textAlign: 'center', fontSize: '12px', color: 'var(--colors-muted-soft)', fontFamily: 'monospace' }}>
+                      #{p.id}
                     </td>
                     <td style={{ textAlign: 'right', fontWeight: '500', fontFamily: 'monospace' }}>{p.pv.toLocaleString()}</td>
                     <td style={{ textAlign: 'right', fontWeight: '500', fontFamily: 'monospace' }}>{p.uv.toLocaleString()}</td>
