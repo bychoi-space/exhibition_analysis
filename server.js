@@ -146,65 +146,53 @@ async function ensureDbInitialized() {
   isMemoryInitialized = true;
 }
 
-// --- PERSISTENCE FUNCTIONS (Memory + Redis Write-Through) ---
+// --- PERSISTENCE FUNCTIONS (Direct Upstash Redis Single-Source-of-Truth) ---
 
 async function fetchMetadata() {
-  await ensureDbInitialized();
-  return memoryMetadata;
+  const meta = await redisGet('lfmall:metadata');
+  return meta || {};
 }
 
 async function saveMetadata(meta) {
-  memoryMetadata = meta;
   await redisSet('lfmall:metadata', meta);
 }
 
 async function fetchDailyStats(dateStr, forceRefresh = false) {
-  await ensureDbInitialized();
-  if (memoryDailyStats[dateStr] && !forceRefresh) return memoryDailyStats[dateStr];
-  // Cache miss or Force Refresh active → load fresh from Upstash Redis
   const data = await redisGet(`lfmall:daily_stats:${dateStr}`);
-  if (data) memoryDailyStats[dateStr] = data;
-  return memoryDailyStats[dateStr] || {};
+  return data || {};
 }
 
 async function saveDailyStats(dateStr, stats) {
-  memoryDailyStats[dateStr] = stats;
   await redisSet(`lfmall:daily_stats:${dateStr}`, stats);
 }
 
 async function fetchRecentLogs() {
-  await ensureDbInitialized();
-  return memoryRecentLogs;
+  const logs = await redisGet('lfmall:recent_logs');
+  return logs || [];
 }
 
 async function saveRecentLogs(logs) {
-  memoryRecentLogs = logs.slice(-2000);
-  await redisSet('lfmall:recent_logs', memoryRecentLogs);
+  const sliced = logs.slice(-2000);
+  await redisSet('lfmall:recent_logs', sliced);
 }
 
 async function fetchSessionAttributions() {
-  await ensureDbInitialized();
-  return memorySessionAttributions;
+  const attributions = await redisGet('lfmall:session_attributions');
+  return attributions || {};
 }
 
 async function saveSessionAttributions(attributions) {
-  memorySessionAttributions = attributions;
   await redisSet('lfmall:session_attributions', attributions);
 }
 
-// --- NEW PERSISTENCE: Click Counts Counter Table for Memory + Redis Write-Through ---
-let memoryClickCounts = {}; // Key: exhibitionId -> { elementClass -> count }
+// --- NEW PERSISTENCE: Click Counts Counter Table for Direct Upstash Redis ---
 
 async function fetchClickCounts(exId) {
-  await ensureDbInitialized();
-  if (memoryClickCounts[exId]) return memoryClickCounts[exId];
   const data = await redisGet(`lfmall:click_counts:${exId}`);
-  if (data) memoryClickCounts[exId] = data;
-  return memoryClickCounts[exId] || {};
+  return data || {};
 }
 
 async function saveClickCounts(exId, counts) {
-  memoryClickCounts[exId] = counts;
   await redisSet(`lfmall:click_counts:${exId}`, counts);
 }
 
