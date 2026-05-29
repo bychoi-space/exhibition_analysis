@@ -159,128 +159,129 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
   return (
     <div className="campaign-detail-view" style={{ animation: 'fadeIn 0.4s ease-out' }}>
       
-      {/* 뒤로가기 액션 바 */}
-      <div className="detail-action-bar" style={{ display: 'flex', alignItems: 'center', marginBottom: '24px', gap: '16px' }}>
+      {/* 뒤로가기 액션 바 - 컴팩트화 */}
+      <div className="detail-action-bar" style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', gap: '16px' }}>
         <button className="btn-back" onClick={onBack} style={{
           background: '#f5f0e0',
           border: '1px solid #e5e5e5',
           color: '#0a0a0a',
-          padding: '8px 16px',
+          padding: '6px 12px',
           borderRadius: 'var(--rounded-md)',
           cursor: 'pointer',
           fontWeight: '500',
+          fontSize: '13px',
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
+          gap: '6px',
           transition: 'all 0.2s ease-in-out'
         }}>
           ← 대시보드로 돌아가기
         </button>
-        <span style={{ color: 'var(--colors-muted)', fontSize: '14px' }}>기획전 분석 상세 뷰 (아이디: #{campaignId})</span>
+        <span style={{ color: 'var(--colors-muted)', fontSize: '13px' }}>기획전 분석 상세 뷰 (아이디: #{campaignId})</span>
       </div>
 
-      {/* 상단 메타데이터 패널 */}
+      {/* 상단 메타데이터 패널 - 컴팩트화 */}
       <div className="detail-metadata-card" style={{
         background: 'var(--colors-surface-card)',
-        padding: '24px',
-        borderRadius: 'var(--rounded-xl)',
+        padding: '12px 20px',
+        borderRadius: 'var(--rounded-md)',
         border: '1px solid var(--colors-hairline)',
-        marginBottom: '32px'
+        marginBottom: '16px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
           <span className="brand-badge" style={{
             background: 'var(--colors-brand-teal)',
             color: 'white',
-            padding: '4px 10px',
+            padding: '2px 8px',
             borderRadius: 'var(--rounded-xs)',
-            fontSize: '12px',
+            fontSize: '11px',
             fontWeight: '600'
           }}>{brandName}</span>
-          <span style={{ fontSize: '13px', color: 'var(--colors-muted)', fontWeight: '500' }}>Exhibition ID: #{campaignId}</span>
+          <span style={{ fontSize: '12px', color: 'var(--colors-muted)', fontWeight: '500' }}>Exhibition ID: #{campaignId}</span>
         </div>
         <h1 style={{
-          fontSize: '28px',
-          fontWeight: '500',
+          fontSize: '20px',
+          fontWeight: '600',
           color: 'var(--colors-ink)',
-          letterSpacing: '-1.5px',
+          letterSpacing: '-0.8px',
           margin: 0
         }}>{cleanTitle}</h1>
       </div>
 
-      {/* 성과 요약 스코어카드 그리드 (5열 수평 배치) */}
+      {/* 성과 요약 스코어카드 그리드 (5열 수평 배치) - 컴팩트화 */}
       <div className="detail-stats-grid" style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '16px',
-        marginBottom: '40px'
+        gridTemplateColumns: 'repeat(5, 1fr)',
+        gap: '12px',
+        marginBottom: '20px'
       }}>
         {/* 누적 PV 카드 */}
         <div className="detail-stat-card card-pink" style={{
           background: 'var(--colors-surface-soft)',
           borderLeft: '4px solid var(--colors-brand-pink)',
-          padding: '20px',
-          borderRadius: 'var(--rounded-lg)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+          padding: '10px 14px',
+          borderRadius: 'var(--rounded-sm)',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.01)'
         }}>
-          <div style={{ fontSize: '13px', color: 'var(--colors-muted)', fontWeight: '500', marginBottom: '8px' }}>누적 페이지뷰 (PV)</div>
-          <div style={{ fontSize: '24px', fontWeight: '600', color: 'var(--colors-ink)' }}>{stats.pv.toLocaleString()} 회</div>
+          <div style={{ fontSize: '11px', color: 'var(--colors-muted)', fontWeight: '500', marginBottom: '4px' }}>누적 페이지뷰 (PV)</div>
+          <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--colors-ink)' }}>{stats.pv.toLocaleString()} 회</div>
         </div>
 
         {/* 순방문자 UV 카드 */}
         <div className="detail-stat-card card-peach" style={{
           background: 'var(--colors-surface-soft)',
           borderLeft: '4px solid var(--colors-brand-peach)',
-          padding: '20px',
-          borderRadius: 'var(--rounded-lg)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+          padding: '10px 14px',
+          borderRadius: 'var(--rounded-sm)',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.01)'
         }}>
-          <div style={{ fontSize: '13px', color: 'var(--colors-muted)', fontWeight: '500', marginBottom: '8px' }}>순 방문자수 (UV)</div>
-          <div style={{ fontSize: '24px', fontWeight: '600', color: 'var(--colors-ink)' }}>{stats.uv.toLocaleString()} 명</div>
+          <div style={{ fontSize: '11px', color: 'var(--colors-muted)', fontWeight: '500', marginBottom: '4px' }}>순 방문자수 (UV)</div>
+          <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--colors-ink)' }}>{stats.uv.toLocaleString()} 명</div>
         </div>
 
         {/* 총 클릭 수 카드 */}
         <div className="detail-stat-card card-ochre" style={{
           background: 'var(--colors-surface-soft)',
           borderLeft: '4px solid var(--colors-brand-ochre)',
-          padding: '20px',
-          borderRadius: 'var(--rounded-lg)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+          padding: '10px 14px',
+          borderRadius: 'var(--rounded-sm)',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.01)'
         }}>
-          <div style={{ fontSize: '13px', color: 'var(--colors-muted)', fontWeight: '500', marginBottom: '8px' }}>누적 클릭 활동량</div>
-          <div style={{ fontSize: '24px', fontWeight: '600', color: 'var(--colors-ink)' }}>{stats.clicks.toLocaleString()} 회</div>
+          <div style={{ fontSize: '11px', color: 'var(--colors-muted)', fontWeight: '500', marginBottom: '4px' }}>누적 클릭 활동량</div>
+          <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--colors-ink)' }}>{stats.clicks.toLocaleString()} 회</div>
         </div>
 
         {/* CVR 전환율 카드 */}
         <div className="detail-stat-card card-lavender" style={{
           background: 'var(--colors-surface-soft)',
           borderLeft: '4px solid var(--colors-brand-lavender)',
-          padding: '20px',
-          borderRadius: 'var(--rounded-lg)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+          padding: '10px 14px',
+          borderRadius: 'var(--rounded-sm)',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.01)'
         }}>
-          <div style={{ fontSize: '13px', color: 'var(--colors-muted)', fontWeight: '500', marginBottom: '8px' }}>기여 구매 전환율 (CVR)</div>
-          <div style={{ fontSize: '24px', fontWeight: '600', color: 'var(--colors-ink)' }}>{stats.cvr}</div>
+          <div style={{ fontSize: '11px', color: 'var(--colors-muted)', fontWeight: '500', marginBottom: '4px' }}>구매 전환율 (CVR)</div>
+          <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--colors-ink)' }}>{stats.cvr}</div>
         </div>
 
         {/* 기여 매출액 카드 */}
         <div className="detail-stat-card card-teal" style={{
           background: 'var(--colors-brand-teal)',
           borderLeft: '4px solid var(--colors-brand-mint)',
-          padding: '20px',
-          borderRadius: 'var(--rounded-lg)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+          padding: '10px 14px',
+          borderRadius: 'var(--rounded-sm)',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.01)',
           color: '#ffffff'
         }}>
-          <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: '500', marginBottom: '8px' }}>누적 기여 매출액</div>
-          <div style={{ fontSize: '24px', fontWeight: '600', color: '#ffffff' }}>₩{stats.revenue.toLocaleString()}</div>
+          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', fontWeight: '500', marginBottom: '4px' }}>누적 기여 매출액</div>
+          <div style={{ fontSize: '16px', fontWeight: '700', color: '#ffffff' }}>₩{stats.revenue.toLocaleString()}</div>
         </div>
       </div>
 
-      {/* 메인 콘텐츠 영역: 모바일 뷰어 및 클릭 히트맵 */}
+      {/* 메인 콘텐츠 영역: 모바일 뷰어 및 클릭 히트맵 - 컴팩트화 및 높이 축소 */}
       <div className="detail-content-layout" style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 380px',
-        gap: '32px',
+        gridTemplateColumns: '1fr 340px',
+        gap: '20px',
         alignItems: 'start'
       }}>
         
@@ -288,35 +289,44 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
         <div className="heatmap-viewer-pane" style={{
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center'
+          alignItems: 'center',
+          background: 'var(--colors-surface-soft)',
+          padding: '16px',
+          borderRadius: 'var(--rounded-lg)',
+          border: '1px solid var(--colors-hairline)'
         }}>
           <h3 style={{
-            fontSize: '18px',
-            fontWeight: '500',
+            fontSize: '15px',
+            fontWeight: '600',
             alignSelf: 'flex-start',
-            marginBottom: '16px',
-            color: 'var(--colors-ink)'
-          }}>실시간 모바일 클릭 히트맵 & 영역별 오버레이</h3>
+            marginBottom: '10px',
+            color: 'var(--colors-ink)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <span>📱</span> 실시간 모바일 클릭 히트맵 & 영역별 오버레이
+          </h3>
 
-          {/* 모바일 폰 3D 액자 프레임 */}
+          {/* 모바일 폰 3D 액자 프레임 - 세로 높이를 500px 수준으로 컴팩트하게 조정 */}
           <div className="phone-device-mockup" style={{
-            width: '375px',
-            height: '760px',
+            width: '320px',
+            height: '490px',
             background: '#0a0a0a',
-            borderRadius: '44px',
-            padding: '12px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
-            border: '4px solid #3a3a3a',
+            borderRadius: '32px',
+            padding: '8px',
+            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.15)',
+            border: '3px solid #3a3a3a',
             position: 'relative'
           }}>
             {/* 노치 및 스피커 */}
             <div className="phone-notch" style={{
-              width: '150px',
-              height: '24px',
+              width: '110px',
+              height: '18px',
               background: '#0a0a0a',
-              borderRadius: '0 0 16px 16px',
+              borderRadius: '0 0 12px 12px',
               position: 'absolute',
-              top: '12px',
+              top: '8px',
               left: '50%',
               transform: 'translateX(-50%)',
               zIndex: 10,
@@ -324,7 +334,7 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
               justifyContent: 'center',
               alignItems: 'center'
             }}>
-              <div style={{ width: '40px', height: '4px', background: '#3a3a3a', borderRadius: '2px' }} />
+              <div style={{ width: '30px', height: '3px', background: '#3a3a3a', borderRadius: '1.5px' }} />
             </div>
 
             {/* 실제 임베드된 iframe */}
@@ -332,7 +342,7 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
               width: '100%',
               height: '100%',
               background: '#ffffff',
-              borderRadius: '34px',
+              borderRadius: '24px',
               overflow: 'hidden',
               position: 'relative'
             }}>
@@ -346,17 +356,17 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
                   alignItems: 'center',
                   justifyContent: 'center',
                   zIndex: 5,
-                  gap: '12px'
+                  gap: '8px'
                 }}>
                   <div className="loading-spinner" style={{
-                    width: '32px',
-                    height: '32px',
-                    border: '4px solid rgba(255, 77, 139, 0.2)',
-                    borderTop: '4px solid var(--colors-brand-pink)',
+                    width: '24px',
+                    height: '24px',
+                    border: '3px solid rgba(255, 77, 139, 0.2)',
+                    borderTop: '3px solid var(--colors-brand-pink)',
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite'
                   }} />
-                  <span style={{ fontSize: '13px', color: 'var(--colors-muted)', fontWeight: '500' }}>LFmall 기획전 화면을 파싱하는 중...</span>
+                  <span style={{ fontSize: '11px', color: 'var(--colors-muted)', fontWeight: '500' }}>LFmall 기획전 화면을 파싱하는 중...</span>
                 </div>
               )}
 
@@ -365,17 +375,17 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
                   position: 'absolute',
                   inset: 0,
                   background: '#faf5e8',
-                  padding: '24px',
+                  padding: '16px',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
                   zIndex: 6,
                   textAlign: 'center',
-                  gap: '16px'
+                  gap: '12px'
                 }}>
-                  <div style={{ fontSize: '40px' }}>⚠️</div>
-                  <span style={{ fontSize: '14px', color: '#ff6b5a', fontWeight: '500' }}>{errorMessage}</span>
+                  <div style={{ fontSize: '24px' }}>⚠️</div>
+                  <span style={{ fontSize: '12px', color: '#ff6b5a', fontWeight: '500' }}>{errorMessage}</span>
                 </div>
               )}
 
@@ -394,43 +404,44 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
           </div>
         </div>
 
-        {/* 우측 사이드바: 클릭 분석 통계 리스트 */}
+        {/* 우측 사이드바: 클릭 분석 통계 리스트 - 컴팩트화 및 폰 높이와 조화롭게 매칭 */}
         <div className="clicks-ranking-pane" style={{
           background: 'var(--colors-surface-card)',
-          padding: '24px',
-          borderRadius: 'var(--rounded-xl)',
+          padding: '16px 20px',
+          borderRadius: 'var(--rounded-lg)',
           border: '1px solid var(--colors-hairline)',
-          height: '100%'
+          maxHeight: '522px',
+          overflowY: 'auto'
         }}>
           <h3 style={{
-            fontSize: '18px',
-            fontWeight: '500',
-            marginBottom: '16px',
+            fontSize: '15px',
+            fontWeight: '600',
+            marginBottom: '8px',
             color: 'var(--colors-ink)'
           }}>가장 활발한 클릭 영역 순위</h3>
           
-          <p style={{ fontSize: '13px', color: 'var(--colors-muted)', marginBottom: '24px', lineHeight: '1.5' }}>
-            유저들이 실제로 기획전 내에서 탭/클릭한 주요 배너 및 텍스트 요소들의 HTML 클래스명 순위입니다.
+          <p style={{ fontSize: '12px', color: 'var(--colors-muted)', marginBottom: '14px', lineHeight: '1.4' }}>
+            실제로 기획전 내에서 탭/클릭한 주요 배너 및 텍스트 요소들의 HTML 클래스명 순위입니다.
           </p>
 
           {clickStats.length === 0 ? (
             <div style={{
               textAlign: 'center',
-              padding: '40px 12px',
+              padding: '30px 10px',
               border: '1px dashed var(--colors-muted-soft)',
               borderRadius: 'var(--rounded-md)',
               color: 'var(--colors-muted)',
-              fontSize: '14px'
+              fontSize: '12px'
             }}>
               수집된 실시간 영역 클릭 이력이 아직 없습니다.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {clickStats.slice(0, 10).map((item, idx) => (
                 <div key={idx} style={{
                   background: 'var(--colors-surface-soft)',
-                  padding: '12px 16px',
-                  borderRadius: 'var(--rounded-md)',
+                  padding: '8px 12px',
+                  borderRadius: 'var(--rounded-sm)',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
@@ -438,9 +449,9 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
                   transition: 'transform 0.2s ease'
                 }}>
                   <div style={{ overflow: 'hidden', marginRight: '8px' }}>
-                    <div style={{ fontSize: '11px', color: 'var(--colors-brand-pink)', fontWeight: '600', marginBottom: '2px' }}>RANK #{idx + 1}</div>
+                    <div style={{ fontSize: '9px', color: 'var(--colors-brand-pink)', fontWeight: '700', marginBottom: '1px' }}>RANK #{idx + 1}</div>
                     <div style={{
-                      fontSize: '13px',
+                      fontSize: '12px',
                       color: 'var(--colors-body-strong)',
                       fontFamily: 'monospace',
                       whiteSpace: 'nowrap',
@@ -453,13 +464,13 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
                   <div style={{
                     background: 'var(--colors-brand-pink)',
                     color: 'white',
-                    padding: '4px 10px',
+                    padding: '2px 8px',
                     borderRadius: 'var(--rounded-pill)',
-                    fontSize: '12px',
+                    fontSize: '11px',
                     fontWeight: '600',
                     whiteSpace: 'nowrap'
                   }}>
-                    🔥 {item.clickCount} clicks
+                    🔥 {item.clickCount}
                   </div>
                 </div>
               ))}
