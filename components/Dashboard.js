@@ -32,7 +32,7 @@ const AnalyticsDashboard = ({ onSelectCampaign }) => {
   const [visibleCount, setVisibleCount] = useState(20);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Toggle between Cumulative and Daily Average [NEW]
+  // Toggle between Cumulative and Daily Average (Default to 'cumulative' to match Detail Page indicators)
   const [viewMode, setViewMode] = useState('cumulative'); // 'cumulative', 'average'
 
   useEffect(() => {
