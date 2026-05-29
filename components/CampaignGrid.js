@@ -2,7 +2,7 @@
 // CampaignGrid.js: Premium Brand Grid Card with Lazy Loading & Dynamic Sorting
 // ==========================================================================
 
-const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, isLoadingMore, setIsLoadingMore }) => {
+const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, isLoadingMore, setIsLoadingMore, onSelectCampaign }) => {
   const [layoutMode, setLayoutMode] = React.useState('list'); // Default to 'list'!
   const [sortField, setSortField] = React.useState('pv'); // Default sort field: accumulated PV
   const [sortDirection, setSortDirection] = React.useState('desc'); // Default sort direction: descending
@@ -190,7 +190,7 @@ const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, i
                 const rankEmoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`;
 
                 return (
-                  <tr key={p.id || idx} style={{ transition: 'all 0.2s' }}>
+                  <tr key={p.id || idx} style={{ transition: 'all 0.2s', cursor: 'pointer' }} onClick={() => onSelectCampaign && onSelectCampaign(p.id, p)} className="clickable-row">
                     <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: isTop3 ? '16px' : '13px' }}>
                       {rankEmoji}
                     </td>
@@ -254,7 +254,7 @@ const CampaignGrid = ({ displayPages, viewMode, visibleCount, setVisibleCount, i
             const brandColor = getBrandColor(brandName);
 
             return (
-              <div key={p.id || idx} className="campaign-card" style={{ '--card-brand-color': brandColor }}>
+              <div key={p.id || idx} className="campaign-card clickable-card" style={{ '--card-brand-color': brandColor, cursor: 'pointer' }} onClick={() => onSelectCampaign && onSelectCampaign(p.id, p)}>
                 <div className="campaign-card-brand-stripe" style={{ backgroundColor: brandColor }} />
                 
                 <div className="campaign-card-header">

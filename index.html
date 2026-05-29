@@ -1115,8 +1115,9 @@
     // Main App Mounting bootsrapper
     function App() {
       const handleSelectCampaign = (id, data) => {
-        // detail.html 물리 페이지로 쿼리 스트링과 함께 이동시킵니다 (뒤로가기 완벽 지원)
-        window.location.href = `./detail.html?id=${id}`;
+        // detail.html 물리 페이지로 쿼리 스트링(기획전 진짜 타이틀 인코딩 포함)과 함께 이동시킵니다 (뒤로가기 완벽 지원)
+        const encTitle = data && data.title ? encodeURIComponent(data.title) : '';
+        window.location.href = `./detail.html?id=${id}&title=${encTitle}`;
       };
 
       return (

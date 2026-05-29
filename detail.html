@@ -41,10 +41,12 @@
         return `${y}-${m}-${day}`;
       };
 
-      // 1. URL 쿼리 파라미터에서 기획전 ID 파싱
+      // 1. URL 쿼리 파라미터에서 기획전 ID 및 타이틀 파싱 (초기 락 방지)
       useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const id = params.get('id');
+        const incomingTitle = params.get('title') || `기획전 캠페인 (ID: ${id})`;
+        
         if (!id) {
           // ID가 누락된 경우 메인 대시보드로 강제 튕기기
           window.location.href = './index.html';
@@ -52,11 +54,28 @@
         }
         setCampaignId(id);
 
+        // URL 타이틀에 포함된 브랜드 정보 파싱
+        const brandMatch = incomingTitle.match(/\(([^)]+)\)/);
+        const derivedBrand = brandMatch ? brandMatch[1] : 'LF MALL';
+
+        // 1차 바인딩: API Fetch 완료 전에 한글 진짜 명칭을 미리 보여주어 UX 신뢰도 향상
+        setCampaignData({
+          id: id,
+          title: incomingTitle,
+          brand: derivedBrand,
+          pv: 0,
+          uv: 0,
+          clicks: 0,
+          revenue: 0,
+          avgStay: '0s',
+          bounceRate: '0%',
+          cvr: '0.0%'
+        });
+
         // 2. 해당 기획전의 통계 데이터를 메인 API로부터 조회해서 세팅
         const isVercelLive = window.location.hostname.includes('vercel.app') || (window.location.hostname.includes('localhost') && window.location.port === '3000');
         const apiBaseUrl = isVercelLive ? '' : 'https://exhibition-analysis-bychoi-s-projects.vercel.app';
 
-        // 3일/7일 등 특정 기간이 아닌 누적 및 매칭을 위해 최근 7일 기간 범위 쿼리 주입
         const today = getFormattedDate(0);
         const sevenDaysAgo = getFormattedDate(7);
 
@@ -65,20 +84,11 @@
           .then(data => {
             const currentEx = data.pages?.find(p => p.id === id);
             if (currentEx) {
-              setCampaignData(currentEx);
-            } else {
-              // 수집된 지표가 없는 신규 기획전의 경우 기본 폼 세팅
+              // API에서 최신 PV, UV, 매출액을 가져오되, 한글 타이틀이 세팅되어 있으면 유지
               setCampaignData({
-                id: id,
-                title: `기획전 캠페인 (ID: ${id})`,
-                brand: 'LF MALL',
-                pv: 0,
-                uv: 0,
-                clicks: 0,
-                revenue: 0,
-                avgStay: '0s',
-                bounceRate: '0%',
-                cvr: '0.0%'
+                ...currentEx,
+                title: currentEx.title && currentEx.title !== '기획전 캠페인' ? currentEx.title : incomingTitle,
+                brand: currentEx.brand || derivedBrand
               });
             }
             setIsLoading(false);

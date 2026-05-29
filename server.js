@@ -192,6 +192,22 @@ async function saveSessionAttributions(attributions) {
   await redisSet('lfmall:session_attributions', attributions);
 }
 
+// --- NEW PERSISTENCE: Click Counts Counter Table for Memory + Redis Write-Through ---
+let memoryClickCounts = {}; // Key: exhibitionId -> { elementClass -> count }
+
+async function fetchClickCounts(exId) {
+  await ensureDbInitialized();
+  if (memoryClickCounts[exId]) return memoryClickCounts[exId];
+  const data = await redisGet(`lfmall:click_counts:${exId}`);
+  if (data) memoryClickCounts[exId] = data;
+  return memoryClickCounts[exId] || {};
+}
+
+async function saveClickCounts(exId, counts) {
+  memoryClickCounts[exId] = counts;
+  await redisSet(`lfmall:click_counts:${exId}`, counts);
+}
+
 function getPastDateStrings(count) {
   const dates = [];
   const now = Date.now();
@@ -203,22 +219,6 @@ function getPastDateStrings(count) {
     dates.push(`${y}-${m}-${day}`);
   }
   return dates;
-}
-
-// Reset function (clears both memory and Redis)
-async function seedServerDatabase() {
-  memoryMetadata = {};
-  memoryDailyStats = {};
-  memoryRecentLogs = [];
-  memorySessionAttributions = {};
-  isMemoryInitialized = true;
-  
-  await Promise.all([
-    redisSet('lfmall:metadata', {}),
-    redisSet('lfmall:recent_logs', []),
-    redisSet('lfmall:session_attributions', {})
-  ]);
-  console.log('[RESET] All data cleared from memory and Redis.');
 }
 
 // --- HELPER FUNCTION: EXTRACT EXHIBITION ID FROM URL ---
@@ -382,6 +382,17 @@ app.post('/api/collect', async (req, res) => {
       node.sessionTimes[finalSessionId].push(ts);
     } else if (finalType === 'CLICK') {
       node.clicks++;
+      
+      // 요소별 클래스 단독 카운터 누적 집계 신설 (Redis 메모리 최소화 설계)
+      const targetClass = safeExtra.elementClass || finalElementId || '';
+      if (targetClass) {
+        const counts = await fetchClickCounts(targetExId);
+        if (!counts[targetClass]) {
+          counts[targetClass] = 0;
+        }
+        counts[targetClass]++;
+        await saveClickCounts(targetExId, counts);
+      }
     } else if (finalType === 'PURCHASE') {
       const rev = parseInt(safeExtra.revenue || 0);
       node.revenue += rev;
@@ -625,7 +636,7 @@ app.get('/api/proxy-exhibition', async (req, res) => {
   }
 });
 
-// [NEW] API: 특정 기획전의 요소(Class)별 클릭 통계 집계
+// [NEW] API: 특정 기획전의 요소(Class)별 클릭 통계 집계 (최적화 영구 카운터 테이블 조회 모델)
 app.get('/api/campaign-clicks', async (req, res) => {
   await ensureDbInitialized();
   const { id } = req.query;
@@ -634,30 +645,10 @@ app.get('/api/campaign-clicks', async (req, res) => {
   }
 
   try {
-    const recentLogs = await fetchRecentLogs();
-    
-    // 이 기획전에서 발생한 CLICK 이벤트 필터링
-    const campaignClicks = recentLogs.filter(log => {
-      const logExId = log.extra?.exhibitionId || log.elementId; // fallback
-      return logExId === id && log.type === 'CLICK';
-    });
+    // 2,000개 버퍼 한계를 우회하고 100% 정합성을 맞추기 위해 영구 집계 테이블 조회
+    const counts = await fetchClickCounts(id);
 
-    // elementClass 또는 elementPath 기준 집계
-    const counts = {};
-    campaignClicks.forEach(log => {
-      // tracker.js에서 extra.elementClass 또는 extra.elementId, extra.elementPath 형태로 적재함
-      const targetClass = log.extra?.elementClass || log.elementId || '';
-      if (!targetClass) return;
-
-      // 단일 클래스로만 매칭하기 위해 여러 개 클래스(공백 구분) 중 첫 번째 혹은 대표 클래스를 사용하거나 
-      // 탐색의 정밀도를 위해 공백이 있는 클래스 문자열 그대로 사용
-      if (!counts[targetClass]) {
-        counts[targetClass] = 0;
-      }
-      counts[targetClass]++;
-    });
-
-    // 결과를 배열로 변환
+    // 결과를 배열로 정제 및 내림차순 정렬
     const clickStatsList = Object.keys(counts).map(elementClass => ({
       elementClass,
       clickCount: counts[elementClass]
@@ -699,6 +690,23 @@ app.all('/api/mock-nxapi/*', (req, res) => {
   res.json(MOCK_OMNI_DATA);
 });
 
+// Reset function (clears both memory and Redis)
+async function seedServerDatabase() {
+  memoryMetadata = {};
+  memoryDailyStats = {};
+  memoryRecentLogs = [];
+  memorySessionAttributions = {};
+  memoryClickCounts = {};
+  isMemoryInitialized = true;
+  
+  await Promise.all([
+    redisSet('lfmall:metadata', {}),
+    redisSet('lfmall:recent_logs', []),
+    redisSet('lfmall:session_attributions', {})
+  ]);
+  console.log('[RESET] All data cleared from memory and Redis.');
+}
+
 // 3. Clear Database
 app.post('/api/reset', async (req, res) => {
   await ensureDbInitialized();
@@ -706,6 +714,7 @@ app.post('/api/reset', async (req, res) => {
     await saveMetadata({});
     await saveRecentLogs([]);
     await saveSessionAttributions({});
+    memoryClickCounts = {};
     
     const dates = getPastDateStrings(15);
     await Promise.all(dates.map(async d => {

@@ -4,7 +4,7 @@
 
 const { useState, useEffect, useMemo } = React;
 
-const AnalyticsDashboard = () => {
+const AnalyticsDashboard = ({ onSelectCampaign }) => {
   const getFormattedDate = (offsetDays = 0) => {
     const now = Date.now();
     // 로컬 시간 오프셋을 배제하고 UTC+9(KST) 밀리초 보정을 기반으로 날짜를 완벽하게 구합니다.
@@ -793,6 +793,7 @@ const AnalyticsDashboard = () => {
         setVisibleCount={setVisibleCount}
         isLoadingMore={isLoadingMore}
         setIsLoadingMore={setIsLoadingMore}
+        onSelectCampaign={onSelectCampaign}
       />
     </div>
   );
