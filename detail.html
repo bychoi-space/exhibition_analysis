@@ -78,8 +78,8 @@
         const isVercelLive = window.location.hostname.includes('vercel.app') || (window.location.hostname.includes('localhost') && window.location.port === '3000');
         const apiBaseUrl = isVercelLive ? '' : 'https://exhibition-analysis-bychoi-s-projects.vercel.app';
 
-        const today = qEnd || getFormattedDate(0);
-        const sevenDaysAgo = qStart || getFormattedDate(7);
+        const today = (qEnd && qEnd !== 'undefined' && qEnd !== 'null') ? qEnd : getFormattedDate(0);
+        const sevenDaysAgo = (qStart && qStart !== 'undefined' && qStart !== 'null') ? qStart : getFormattedDate(7);
 
         fetch(`${apiBaseUrl}/api/stats?startDate=${sevenDaysAgo}&endDate=${today}`)
           .then(res => res.json())
