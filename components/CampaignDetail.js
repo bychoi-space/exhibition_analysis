@@ -243,7 +243,7 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
             justifyContent: 'center'
           }}>
             <div style={{ fontSize: '10px', color: 'var(--colors-muted)', fontWeight: '600', marginBottom: '2px', textTransform: 'uppercase' }}>페이지뷰 (PV)</div>
-            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--colors-ink)' }}>{stats.pv.toLocaleString()}</div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--colors-ink)' }}>{(stats.pv || 0).toLocaleString()}</div>
           </div>
 
           {/* 순방문자 UV 카드 */}
@@ -258,7 +258,7 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
             justifyContent: 'center'
           }}>
             <div style={{ fontSize: '10px', color: 'var(--colors-muted)', fontWeight: '600', marginBottom: '2px', textTransform: 'uppercase' }}>순방문자 (UV)</div>
-            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--colors-ink)' }}>{stats.uv.toLocaleString()}</div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--colors-ink)' }}>{(stats.uv || 0).toLocaleString()}</div>
           </div>
 
           {/* 총 클릭 수 카드 */}
@@ -273,7 +273,7 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
             justifyContent: 'center'
           }}>
             <div style={{ fontSize: '10px', color: 'var(--colors-muted)', fontWeight: '600', marginBottom: '2px', textTransform: 'uppercase' }}>클릭활동량</div>
-            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--colors-ink)' }}>{stats.clicks.toLocaleString()}</div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--colors-ink)' }}>{(stats.clicks || 0).toLocaleString()}</div>
           </div>
 
           {/* CVR 전환율 카드 */}
@@ -288,7 +288,7 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
             justifyContent: 'center'
           }}>
             <div style={{ fontSize: '10px', color: 'var(--colors-muted)', fontWeight: '600', marginBottom: '2px', textTransform: 'uppercase' }}>전환율 (CVR)</div>
-            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--colors-ink)' }}>{stats.cvr}</div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--colors-ink)' }}>{stats.cvr || '0.0%'}</div>
           </div>
 
           {/* 기여 매출액 카드 */}
@@ -304,7 +304,7 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
             justifyContent: 'center'
           }}>
             <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)', fontWeight: '600', marginBottom: '2px', textTransform: 'uppercase' }}>기여 매출액</div>
-            <div style={{ fontSize: '15px', fontWeight: '700', color: '#ffffff' }}>₩{stats.revenue.toLocaleString()}</div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: '#ffffff' }}>₩{(stats.revenue || 0).toLocaleString()}</div>
           </div>
         </div>
       </div>
