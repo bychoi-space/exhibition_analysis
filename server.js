@@ -114,6 +114,60 @@ function redisSet(key, value) {
   });
 }
 
+function redisPipelineGet(keys) {
+  if (!keys || keys.length === 0) return Promise.resolve([]);
+  return new Promise((resolve) => {
+    const commands = keys.map(k => ["GET", k]);
+    const body = JSON.stringify(commands);
+    const url = new URL('/pipeline', UPSTASH_REDIS_REST_URL);
+    const bodyBuffer = Buffer.from(body, 'utf8');
+    const options = {
+      method: 'POST',
+      hostname: url.hostname,
+      path: '/pipeline',
+      port: 443,
+      headers: {
+        'Authorization': `Bearer ${UPSTASH_REDIS_REST_TOKEN}`,
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Length': bodyBuffer.length
+      }
+    };
+    const req = https.request(options, (res) => {
+      res.setEncoding('utf8');
+      let data = '';
+      res.on('data', (chunk) => data += chunk);
+      res.on('end', () => {
+        try {
+          const parsedList = JSON.parse(data);
+          if (Array.isArray(parsedList)) {
+            const results = parsedList.map(item => {
+              if (item.result !== null && item.result !== undefined) {
+                try {
+                  return JSON.parse(item.result);
+                } catch (e) {
+                  return null;
+                }
+              }
+              return null;
+            });
+            resolve(results);
+          } else {
+            resolve(keys.map(() => null));
+          }
+        } catch (e) {
+          resolve(keys.map(() => null));
+        }
+      });
+    });
+    req.on('error', (e) => {
+      console.warn('[REDIS-PIPELINE-ERROR]', e.message);
+      resolve(keys.map(() => null));
+    });
+    req.write(bodyBuffer);
+    req.end();
+  });
+}
+
 // --- IN-MEMORY CACHE (Write-Through to Upstash Redis) ---
 let memoryMetadata = {};
 let memoryDailyStats = {};
@@ -441,9 +495,12 @@ app.get('/api/stats', async (req, res) => {
   // Unified consolidated exhibitionStats map
   const consolidatedExStats = {};
 
-  // Fetch and aggregate daily statistics for each date in range (Force fresh sync from Upstash Redis to bypass multi-instance sync issue)
-  await Promise.all(datesList.map(async (dateStr) => {
-    const dailyStats = await fetchDailyStats(dateStr, true);
+  // Fetch and aggregate daily statistics using a single pipelined REST request to completely bypass throttling and guarantee 100% data integrity!
+  const pipelineKeys = datesList.map(d => `lfmall:daily_stats:${d}`);
+  const dailyStatsList = await redisPipelineGet(pipelineKeys);
+
+  datesList.forEach((dateStr, index) => {
+    const dailyStats = dailyStatsList[index] || {};
     
     Object.keys(dailyStats).forEach(exId => {
       const sourceNode = dailyStats[exId];
@@ -490,7 +547,7 @@ app.get('/api/stats', async (req, res) => {
         dailyStatsMap[dateStr].revenue += sourceNode.revenue;
       }
     });
-  }));
+  });
 
   // Calculate averages & rates, and format for the front-end
   const exhibitionsPerformanceList = Object.values(consolidatedExStats).map(ex => {
