@@ -32,6 +32,15 @@
       const [campaignData, setCampaignData] = useState(null);
       const [isLoading, setIsLoading] = useState(true);
 
+      const getFormattedDate = (offsetDays = 0) => {
+        const now = Date.now();
+        const d = new Date(now + 9 * 60 * 60 * 1000 - offsetDays * 24 * 60 * 60 * 1000);
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+
       // 1. URL 쿼리 파라미터에서 기획전 ID 파싱
       useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -47,8 +56,11 @@
         const isVercelLive = window.location.hostname.includes('vercel.app') || (window.location.hostname.includes('localhost') && window.location.port === '3000');
         const apiBaseUrl = isVercelLive ? '' : 'https://exhibition-analysis-bychoi-s-projects.vercel.app';
 
-        // 3일/7일 등 특정 기간이 아닌 누적 및 매칭을 위해 전체 기간 통계 수집
-        fetch(`${apiBaseUrl}/api/stats`)
+        // 3일/7일 등 특정 기간이 아닌 누적 및 매칭을 위해 최근 7일 기간 범위 쿼리 주입
+        const today = getFormattedDate(0);
+        const sevenDaysAgo = getFormattedDate(7);
+
+        fetch(`${apiBaseUrl}/api/stats?startDate=${sevenDaysAgo}&endDate=${today}`)
           .then(res => res.json())
           .then(data => {
             const currentEx = data.pages?.find(p => p.id === id);
