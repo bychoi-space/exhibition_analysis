@@ -793,7 +793,7 @@ const AnalyticsDashboard = ({ onSelectCampaign }) => {
         setVisibleCount={setVisibleCount}
         isLoadingMore={isLoadingMore}
         setIsLoadingMore={setIsLoadingMore}
-        onSelectCampaign={onSelectCampaign}
+        onSelectCampaign={(id, data) => onSelectCampaign(id, data, startDate, endDate)}
       />
     </div>
   );

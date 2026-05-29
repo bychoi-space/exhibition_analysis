@@ -46,6 +46,8 @@
         const params = new URLSearchParams(window.location.search);
         const id = params.get('id');
         const incomingTitle = params.get('title') || `기획전 캠페인 (ID: ${id})`;
+        const qStart = params.get('startDate');
+        const qEnd = params.get('endDate');
         
         if (!id) {
           // ID가 누락된 경우 메인 대시보드로 강제 튕기기
@@ -76,8 +78,8 @@
         const isVercelLive = window.location.hostname.includes('vercel.app') || (window.location.hostname.includes('localhost') && window.location.port === '3000');
         const apiBaseUrl = isVercelLive ? '' : 'https://exhibition-analysis-bychoi-s-projects.vercel.app';
 
-        const today = getFormattedDate(0);
-        const sevenDaysAgo = getFormattedDate(7);
+        const today = qEnd || getFormattedDate(0);
+        const sevenDaysAgo = qStart || getFormattedDate(7);
 
         fetch(`${apiBaseUrl}/api/stats?startDate=${sevenDaysAgo}&endDate=${today}`)
           .then(res => res.json())

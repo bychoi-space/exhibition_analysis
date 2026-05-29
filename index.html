@@ -1106,7 +1106,7 @@
             setVisibleCount={setVisibleCount}
             isLoadingMore={isLoadingMore}
             setIsLoadingMore={setIsLoadingMore}
-            onSelectCampaign={onSelectCampaign}
+            onSelectCampaign={(id, data) => onSelectCampaign(id, data, startDate, endDate)}
           />
         </div>
       );
@@ -1114,10 +1114,12 @@
 
     // Main App Mounting bootsrapper
     function App() {
-      const handleSelectCampaign = (id, data) => {
+      const handleSelectCampaign = (id, data, startDate, endDate) => {
         // detail.html 물리 페이지로 쿼리 스트링(기획전 진짜 타이틀 인코딩 포함)과 함께 이동시킵니다 (뒤로가기 완벽 지원)
         const encTitle = data && data.title ? encodeURIComponent(data.title) : '';
-        window.location.href = `./detail.html?id=${id}&title=${encTitle}`;
+        const startParam = startDate ? `&startDate=${startDate}` : '';
+        const endParam = endDate ? `&endDate=${endDate}` : '';
+        window.location.href = `./detail.html?id=${id}&title=${encTitle}${startParam}${endParam}`;
       };
 
       return (
