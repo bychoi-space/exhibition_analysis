@@ -646,7 +646,28 @@ app.get('/api/campaign-clicks', async (req, res) => {
 
   try {
     // 2,000개 버퍼 한계를 우회하고 100% 정합성을 맞추기 위해 영구 집계 테이블 조회
-    const counts = await fetchClickCounts(id);
+    let counts = await fetchClickCounts(id);
+
+    // [Fallback] 만약 신규 영구 카운터 테이블에 데이터가 없는 경우,
+    // recentLogs에 남아있는 최근 2000개 버퍼 데이터에서 실시간 클릭 로그를 역추적해 채워줍니다.
+    if (Object.keys(counts).length === 0) {
+      const recentLogs = await fetchRecentLogs();
+      const tempCounts = {};
+      recentLogs.forEach(log => {
+        if (log.type === 'CLICK' && String(log.extra?.exhibitionId) === String(id)) {
+          const targetClass = log.extra?.elementClass || log.elementId || '';
+          if (targetClass) {
+            tempCounts[targetClass] = (tempCounts[targetClass] || 0) + 1;
+          }
+        }
+      });
+      if (Object.keys(tempCounts).length > 0) {
+        counts = tempCounts;
+        // 다음번 조회를 위해 영구 카운터에 보존해둡니다 (Write-Through)
+        await saveClickCounts(id, counts);
+        console.log(`[CLICKS-HEALED] Reconstructed click statistics for campaign ${id} from recent logs buffer.`);
+      }
+    }
 
     // 결과를 배열로 정제 및 내림차순 정렬
     const clickStatsList = Object.keys(counts).map(elementClass => ({
