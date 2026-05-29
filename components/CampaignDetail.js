@@ -23,11 +23,15 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
   const cleanTitle = stats.title.replace(/\([^)]+\)\s*/g, '');
   const brandName = stats.brand || 'LF MALL';
 
+  // API 서버 베이스 경로 동적 결정 (file:// 또는 로컬 구동 시 Vercel 실서버 연동 지원)
+  const isVercelLive = window.location.hostname.includes('vercel.app') || (window.location.hostname.includes('localhost') && window.location.port === '3000');
+  const apiBaseUrl = isVercelLive ? '' : 'https://exhibition-analysis-bychoi-s-projects.vercel.app';
+
   // 1. 요소별 실시간 클릭 로그 통계 Fetch
   useEffect(() => {
     if (!campaignId) return;
 
-    fetch(`/api/campaign-clicks?id=${campaignId}`)
+    fetch(`${apiBaseUrl}/api/campaign-clicks?id=${campaignId}`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -37,7 +41,7 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
       .catch(err => {
         console.error('[DETAIL-CLICKS-ERROR]', err);
       });
-  }, [campaignId]);
+  }, [campaignId, apiBaseUrl]);
 
   // 2. Iframe 로드 완료 시 Same-Origin DOM 클릭 오버레이 주입
   const handleIframeLoad = () => {
@@ -419,7 +423,7 @@ function CampaignDetail({ campaignId, campaignData, onBack }) {
 
               <iframe
                 ref={iframeRef}
-                src={`/api/proxy-exhibition?id=${campaignId}`}
+                src={`${apiBaseUrl}/api/proxy-exhibition?id=${campaignId}`}
                 style={{
                   width: '100%',
                   height: '100%',
